@@ -1,0 +1,13 @@
+{
+  "name": "handil",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start --workspace=mobile",
+    "api": "npm run dev --workspace=api"
+  }
+}
