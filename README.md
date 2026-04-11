@@ -33,7 +33,9 @@ npm run start
 # same: npm run dev   npm run mobile
 ```
 
-On a **physical phone**, create `apps/mobile/.env` from `.env.example` and set `EXPO_PUBLIC_API_BASE_URL` to your computer's LAN address (same Wi‑Fi), for example `http://192.168.1.10:4000/api`. Restart Expo after changing env vars.
+In **Expo Go** on a physical phone, the app usually picks up your dev machine’s LAN IP from Metro (`expoConfig.hostUri`) and calls the API on port **4000** on that same machine. Keep the phone and PC on the same Wi‑Fi, and ensure the API is running (`npm run dev` from repo root).
+
+If the health check still fails, create `apps/mobile/.env` from `.env.example` and set `EXPO_PUBLIC_API_BASE_URL` explicitly (e.g. `http://192.168.1.103:4000/api`). On Windows, allow **Node** through the firewall for port **4000** if requests are blocked. Restart Expo after changing env vars.
 
 ### 2) API server
 
