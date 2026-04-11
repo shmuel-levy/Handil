@@ -24,12 +24,13 @@ From repo root (after `npm install` at root):
 npm run mobile
 ```
 
-Or from the app folder:
+Or from the app folder (`dev` / `mobile` / `start` all run Expo):
 
 ```bash
 cd apps/mobile
 npm install
 npm run start
+# same: npm run dev   npm run mobile
 ```
 
 On a **physical phone**, create `apps/mobile/.env` from `.env.example` and set `EXPO_PUBLIC_API_BASE_URL` to your computer's LAN address (same Wi‑Fi), for example `http://192.168.1.10:4000/api`. Restart Expo after changing env vars.
