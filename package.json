@@ -10,5 +10,11 @@
     "dev": "npm run dev --workspace=api",
     "mobile": "npm run start --workspace=mobile",
     "api": "npm run dev --workspace=api"
+  },
+  "devDependencies": {
+    "@types/react": "~18.3.0"
+  },
+  "overrides": {
+    "@types/react": "~18.3.0"
   }
 }

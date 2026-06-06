@@ -45,3 +45,19 @@ export interface Booking {
   price: number | null;
   createdAt: string;
 }
+
+export interface JobPost {
+  _id: string;
+  resident: { _id: string; name: string; avatar: string; phone?: string };
+  title: string;
+  description: string;
+  category: string;
+  budget: number | null;
+  images: string[];
+  status: 'open' | 'accepted' | 'closed';
+  acceptedBy: { _id: string; name: string; avatar: string } | null;
+  urgency: 'urgent' | 'today' | 'week' | 'flexible';
+  location: string;
+  createdAt: string;
+  updatedAt: string;
+}

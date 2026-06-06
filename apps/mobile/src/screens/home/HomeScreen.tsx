@@ -35,6 +35,9 @@ export default function HomeScreen() {
   }, []);
 
   const firstName = user?.name?.split(' ')[0] ?? '';
+  const isWorker = user?.role === 'worker';
+  // Access the tab navigator to switch tabs
+  const tabNav = navigation.getParent<any>();
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -86,6 +89,39 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* Job Post action card */}
+        {isWorker ? (
+          <TouchableOpacity
+            style={styles.jobCard}
+            onPress={() => tabNav?.navigate('PostsTab')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.jobCardIcon}>
+              <Ionicons name="newspaper-outline" size={26} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.jobCardTitle}>עבודות פתוחות</Text>
+              <Text style={styles.jobCardSub}>לקוחות מחפשים בעלי מקצוע עכשיו</Text>
+            </View>
+            <Ionicons name="chevron-back" size={18} color={colors.primary} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.jobCard, styles.jobCardResident]}
+            onPress={() => tabNav?.navigate('PostsTab')}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.jobCardIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="create-outline" size={26} color="#92400E" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.jobCardTitle, { color: '#92400E' }]}>פרסם עבודה</Text>
+              <Text style={styles.jobCardSub}>תאר מה אתה צריך ובעלי מקצוע יפנו אליך</Text>
+            </View>
+            <Ionicons name="chevron-back" size={18} color="#92400E" />
+          </TouchableOpacity>
+        )}
 
         {/* Banner */}
         <View style={styles.banner}>
@@ -211,4 +247,32 @@ const styles = StyleSheet.create({
   workerList: { paddingHorizontal: 20 },
   emptyBox: { alignItems: 'center', paddingVertical: 32 },
   emptyText: { marginTop: 12, fontSize: 14, color: colors.textMuted },
+  jobCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  jobCardResident: { borderColor: '#FDE68A' },
+  jobCardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  jobCardTitle: { fontSize: 15, fontWeight: '700', color: colors.primary, textAlign: 'right', marginBottom: 2 },
+  jobCardSub: { fontSize: 12, color: colors.textMuted, textAlign: 'right', lineHeight: 18 },
 });

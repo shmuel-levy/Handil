@@ -7,7 +7,14 @@ export type MainTabParamList = {
   HomeTab: undefined;
   SearchTab: { category?: string; categoryName?: string } | undefined;
   BookingsTab: undefined;
+  PostsTab: undefined;
   ProfileTab: undefined;
+};
+
+export type PostsStackParamList = {
+  PostsFeed: undefined;
+  CreatePost: undefined;
+  PostDetail: { postId: string };
 };
 
 export type HomeStackParamList = {

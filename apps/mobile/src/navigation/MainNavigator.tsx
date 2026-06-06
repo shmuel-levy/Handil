@@ -6,6 +6,7 @@ import { colors } from '../constants/colors';
 import { MainTabParamList } from './types';
 import BookingsStack from './BookingsStack';
 import HomeStack from './HomeStack';
+import PostsStack from './PostsStack';
 import SearchStack from './SearchStack';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -26,10 +27,11 @@ export default function MainNavigator() {
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
         tabBarIcon: ({ focused, color, size }) => {
           const icons: Record<string, { active: string; inactive: string }> = {
-            HomeTab:     { active: 'home',              inactive: 'home-outline' },
-            SearchTab:   { active: 'search',            inactive: 'search-outline' },
-            BookingsTab: { active: 'calendar',          inactive: 'calendar-outline' },
-            ProfileTab:  { active: 'person',            inactive: 'person-outline' },
+            HomeTab:     { active: 'home',               inactive: 'home-outline' },
+            SearchTab:   { active: 'search',             inactive: 'search-outline' },
+            BookingsTab: { active: 'calendar',           inactive: 'calendar-outline' },
+            PostsTab:    { active: 'newspaper',          inactive: 'newspaper-outline' },
+            ProfileTab:  { active: 'person',             inactive: 'person-outline' },
           };
           const set = icons[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
           const name = focused ? set.active : set.inactive;
@@ -37,8 +39,9 @@ export default function MainNavigator() {
         },
       })}
     >
-      <Tab.Screen name="HomeTab"     component={HomeStack}    options={{ title: 'בית' }} />
-      <Tab.Screen name="SearchTab"   component={SearchStack}  options={{ title: 'חיפוש' }} />
+      <Tab.Screen name="HomeTab"     component={HomeStack}     options={{ title: 'בית' }} />
+      <Tab.Screen name="SearchTab"   component={SearchStack}   options={{ title: 'חיפוש' }} />
+      <Tab.Screen name="PostsTab"    component={PostsStack}    options={{ title: 'עבודות' }} />
       <Tab.Screen name="BookingsTab" component={BookingsStack} options={{ title: 'הזמנות' }} />
       <Tab.Screen name="ProfileTab"  component={ProfileScreen} options={{ title: 'פרופיל', headerShown: false }} />
     </Tab.Navigator>

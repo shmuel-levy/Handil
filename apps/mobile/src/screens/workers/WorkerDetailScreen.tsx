@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Button from '../../components/common/Button';
 import StarRating from '../../components/workers/StarRating';
 import { getCategoryBySlug } from '../../constants/categories';
 import { colors } from '../../constants/colors';
@@ -62,7 +61,6 @@ export default function WorkerDetailScreen() {
 
   const isOwnProfile = user?.id === worker.user._id;
   const canBook = user?.role === 'resident' && !isOwnProfile;
-  const hasPhone = Boolean(worker.user.phone);
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -71,131 +69,33 @@ export default function WorkerDetailScreen() {
         keyExtractor={(r) => r._id}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
-          <>
-            {/* Hero */}
-            <View style={styles.hero}>
-              <View style={styles.avatarWrap}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{worker.user.name.charAt(0).toUpperCase()}</Text>
-                </View>
-                {worker.isVerified && (
-                  <View style={styles.verifiedBadge}>
-                    <Ionicons name="checkmark" size={10} color={colors.white} />
-                  </View>
-                )}
-              </View>
-              <Text style={styles.workerName}>{worker.user.name}</Text>
-              <StarRating rating={worker.rating} reviewCount={worker.reviewCount} size={16} />
-
-              <View style={styles.badgeRow}>
-                {worker.isAvailable && (
-                  <View style={[styles.badge, styles.badgeGreen]}>
-                    <View style={styles.availableDot} />
-                    <Text style={[styles.badgeText, { color: colors.success }]}>זמין עכשיו</Text>
-                  </View>
-                )}
-                {worker.isVerified && (
-                  <View style={[styles.badge, styles.badgeBlue]}>
-                    <Ionicons name="shield-checkmark-outline" size={12} color={colors.primary} />
-                    <Text style={[styles.badgeText, { color: colors.primary }]}>מאומת</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Quick action buttons */}
-              {hasPhone && (
-                <TouchableOpacity
-                  style={styles.phoneBtn}
-                  onPress={() => Linking.openURL(`tel:${worker.user.phone}`)}
-                >
-                  <Ionicons name="call-outline" size={18} color={colors.success} />
-                  <Text style={styles.phoneBtnText}>התקשר: {worker.user.phone}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Info cards */}
-            <View style={styles.infoGrid}>
-              <InfoCard icon="location-outline" label="עיר" value={worker.city} />
-              <InfoCard
-                icon="briefcase-outline"
-                label="ניסיון"
-                value={worker.yearsExperience > 0 ? `${worker.yearsExperience} שנים` : 'לא צוין'}
-              />
-              <InfoCard
-                icon="cash-outline"
-                label="תעריף"
-                value={worker.hourlyRate ? `${worker.hourlyRate}₪/שעה` : 'לפי הסכמה'}
-              />
-              <InfoCard icon="star-outline" label="דירוגים" value={String(worker.reviewCount)} />
-            </View>
-
-            {/* Bio */}
-            {worker.bio ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>אודות</Text>
-                <Text style={styles.bio}>{worker.bio}</Text>
-              </View>
-            ) : null}
-
-            {/* Categories */}
-            {worker.categories.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>תחומי עיסוק</Text>
-                <View style={styles.catRow}>
-                  {worker.categories.map((slug) => {
-                    const cat = getCategoryBySlug(slug);
-                    return (
-                      <View key={slug} style={styles.catChip}>
-                        <Ionicons name={(cat?.icon ?? 'ellipse-outline') as any} size={14} color={colors.primary} />
-                        <Text style={styles.catChipText}>{cat?.name_he ?? slug}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {reviews.length > 0 && (
-              <Text style={[styles.sectionTitle, styles.reviewsHeader]}>
-                ביקורות ({reviews.length})
-              </Text>
-            )}
-          </>
+          <WorkerHeader
+            worker={worker}
+            onBook={() =>
+              navigation.navigate('BookingRequest', {
+                workerId: worker._id,
+                workerUserId: worker.user._id,
+                workerName: worker.user.name,
+                category: worker.categories[0],
+              })
+            }
+            canBook={canBook}
+            reviews={reviews}
+          />
         }
-        renderItem={({ item }) => (
-          <View style={styles.reviewCard}>
-            <View style={styles.reviewHeader}>
-              <View style={styles.reviewAvatar}>
-                <Text style={styles.reviewAvatarText}>{item.resident.name.charAt(0)}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.reviewerName}>{item.resident.name}</Text>
-                <StarRating rating={item.rating} showCount={false} size={12} />
-              </View>
-              <Text style={styles.reviewDate}>
-                {new Date(item.createdAt).toLocaleDateString('he-IL')}
-              </Text>
-            </View>
-            {item.comment ? <Text style={styles.reviewComment}>{item.comment}</Text> : null}
-          </View>
-        )}
+        renderItem={({ item }) => <ReviewCard review={item} />}
         ListEmptyComponent={
-          reviews.length === 0 ? (
-            <View style={styles.noReviews}>
-              <Ionicons name="star-outline" size={32} color={colors.textDisabled} />
-              <Text style={styles.noReviewsText}>אין ביקורות עדיין</Text>
-            </View>
-          ) : null
+          <View style={styles.noReviews}>
+            <Ionicons name="star-outline" size={28} color={colors.textDisabled} />
+            <Text style={styles.noReviewsText}>אין ביקורות עדיין</Text>
+          </View>
         }
       />
 
-      {/* Book button */}
       {canBook && (
         <View style={styles.footer}>
-          <Button
-            title={`הזמינו את ${worker.user.name}`}
-            size="lg"
+          <TouchableOpacity
+            style={styles.bookBtn}
             onPress={() =>
               navigation.navigate('BookingRequest', {
                 workerId: worker._id,
@@ -204,19 +104,154 @@ export default function WorkerDetailScreen() {
                 category: worker.categories[0],
               })
             }
-          />
+          >
+            <Ionicons name="calendar-outline" size={18} color={colors.white} />
+            <Text style={styles.bookBtnText}>הזמינו את {worker.user.name}</Text>
+          </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>
   );
 }
 
-function InfoCard({ icon, label, value }: { icon: string; label: string; value: string }) {
+function WorkerHeader({
+  worker,
+  onBook,
+  canBook,
+  reviews,
+}: {
+  worker: WorkerProfile;
+  onBook: () => void;
+  canBook: boolean;
+  reviews: Review[];
+}) {
   return (
-    <View style={styles.infoCard}>
-      <Ionicons name={icon as any} size={20} color={colors.primary} />
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+    <>
+      {/* Hero */}
+      <View style={styles.hero}>
+        <View style={styles.avatarWrap}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{worker.user.name.charAt(0).toUpperCase()}</Text>
+          </View>
+          {worker.isVerified && (
+            <View style={styles.verifiedBadge}>
+              <Ionicons name="checkmark" size={9} color={colors.white} />
+            </View>
+          )}
+        </View>
+        <Text style={styles.workerName}>{worker.user.name}</Text>
+        <StarRating rating={worker.rating} reviewCount={worker.reviewCount} size={14} />
+
+        {/* Badges */}
+        <View style={styles.badgeRow}>
+          {worker.isAvailable && (
+            <View style={[styles.badge, styles.badgeGreen]}>
+              <View style={styles.availableDot} />
+              <Text style={[styles.badgeText, { color: colors.success }]}>זמין עכשיו</Text>
+            </View>
+          )}
+          {worker.isVerified && (
+            <View style={[styles.badge, styles.badgeBlue]}>
+              <Ionicons name="shield-checkmark-outline" size={11} color={colors.primary} />
+              <Text style={[styles.badgeText, { color: colors.primary }]}>מאומת</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Compact stats row */}
+      <View style={styles.statsRow}>
+        <StatPill icon="location-outline" value={worker.city || 'לא צוין'} label="עיר" />
+        <View style={styles.statDivider} />
+        <StatPill
+          icon="briefcase-outline"
+          value={worker.yearsExperience > 0 ? `${worker.yearsExperience} שנים` : '—'}
+          label="ניסיון"
+        />
+        <View style={styles.statDivider} />
+        <StatPill
+          icon="cash-outline"
+          value={worker.hourlyRate ? `₪${worker.hourlyRate}` : 'לפי הסכמה'}
+          label="לשעה"
+        />
+        <View style={styles.statDivider} />
+        <StatPill icon="star-outline" value={String(worker.reviewCount)} label="ביקורות" />
+      </View>
+
+      {/* Phone */}
+      {worker.user.phone ? (
+        <TouchableOpacity
+          style={styles.phoneBtn}
+          onPress={() => Linking.openURL(`tel:${worker.user.phone}`)}
+        >
+          <Ionicons name="call-outline" size={16} color={colors.success} />
+          <Text style={styles.phoneBtnText}>{worker.user.phone}</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {/* Bio */}
+      {worker.bio ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>אודות</Text>
+          <Text style={styles.bio}>{worker.bio}</Text>
+        </View>
+      ) : null}
+
+      {/* Categories */}
+      {worker.categories.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>תחומי עיסוק</Text>
+          <View style={styles.catRow}>
+            {worker.categories.map((slug) => {
+              const cat = getCategoryBySlug(slug);
+              return (
+                <View key={slug} style={styles.catChip}>
+                  <Ionicons name={(cat?.icon ?? 'ellipse-outline') as any} size={13} color={colors.primary} />
+                  <Text style={styles.catChipText}>{cat?.name_he ?? slug}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {reviews.length > 0 && (
+        <Text style={[styles.sectionTitle, styles.reviewsHeader]}>
+          ביקורות ({reviews.length})
+        </Text>
+      )}
+    </>
+  );
+}
+
+function StatPill({ icon, value, label }: { icon: string; value: string; label: string }) {
+  return (
+    <View style={styles.statPill}>
+      <Ionicons name={icon as any} size={15} color={colors.primary} />
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function ReviewCard({ review }: { review: Review }) {
+  return (
+    <View style={styles.reviewCard}>
+      <View style={styles.reviewHeader}>
+        <View style={styles.reviewAvatar}>
+          <Text style={styles.reviewAvatarText}>{review.resident.name.charAt(0)}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.reviewerName}>{review.resident.name}</Text>
+          <StarRating rating={review.rating} showCount={false} size={11} />
+        </View>
+        <Text style={styles.reviewDate}>
+          {new Date(review.createdAt).toLocaleDateString('he-IL')}
+        </Text>
+      </View>
+      {review.comment ? (
+        <Text style={styles.reviewComment}>{review.comment}</Text>
+      ) : null}
     </View>
   );
 }
@@ -226,115 +261,126 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   errorText: { color: colors.error, fontSize: 15, textAlign: 'center' },
   listContent: { paddingBottom: 100 },
+
+  // Hero
   hero: {
     backgroundColor: colors.surface,
     alignItems: 'center',
-    paddingVertical: 28,
+    paddingVertical: 24,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderColor: colors.border,
-    marginBottom: 16,
+    marginBottom: 0,
   },
-  avatarWrap: { position: 'relative', marginBottom: 12 },
+  avatarWrap: { position: 'relative', marginBottom: 10 },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 32, fontWeight: '800', color: colors.primary },
+  avatarText: { fontSize: 28, fontWeight: '800', color: colors.primary },
   verifiedBadge: {
     position: 'absolute',
-    bottom: 2,
-    end: 2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    bottom: 1,
+    end: 1,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: colors.surface,
   },
-  workerName: { fontSize: 22, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 },
-  badgeRow: { flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 16 },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
+  workerName: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginBottom: 5 },
+  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 10 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10 },
   badgeGreen: { backgroundColor: colors.successLight },
   badgeBlue: { backgroundColor: colors.primaryLight },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-  availableDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+  badgeText: { fontSize: 11, fontWeight: '700' },
+  availableDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
+
+  // Stats row (compact, no big cards)
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 16,
+  },
+  statPill: { flex: 1, alignItems: 'center', gap: 3 },
+  statValue: { fontSize: 13, fontWeight: '700', color: colors.textPrimary, textAlign: 'center' },
+  statLabel: { fontSize: 10, color: colors.textMuted, textAlign: 'center' },
+  statDivider: { width: 1, height: 32, backgroundColor: colors.border },
+
+  // Phone
   phoneBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    alignSelf: 'center',
+    gap: 7,
     backgroundColor: colors.successLight,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 22,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: colors.success,
   },
   phoneBtnText: { fontSize: 14, fontWeight: '600', color: colors.success },
-  infoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    gap: 10,
-    marginBottom: 20,
-  },
-  infoCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  infoLabel: { fontSize: 11, color: colors.textMuted, marginTop: 4 },
-  infoValue: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginTop: 2 },
+
+  // Sections
   section: { paddingHorizontal: 20, marginBottom: 20 },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, textAlign: 'right', marginBottom: 10 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, textAlign: 'right', marginBottom: 10 },
   reviewsHeader: { paddingHorizontal: 20, marginBottom: 8 },
-  bio: { fontSize: 14, color: colors.textSecondary, textAlign: 'right', lineHeight: 22 },
-  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  bio: { fontSize: 14, color: colors.textSecondary, textAlign: 'right', lineHeight: 24 },
+
+  // Category chips — compact
+  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   catChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
   },
-  catChipText: { fontSize: 13, fontWeight: '600', color: colors.primary },
+  catChipText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+
+  // Reviews
   reviewCard: {
     backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginBottom: 10,
     borderRadius: 14,
-    padding: 14,
+    padding: 13,
     borderWidth: 1,
     borderColor: colors.border,
   },
   reviewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 },
   reviewAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  reviewAvatarText: { fontSize: 15, fontWeight: '700', color: colors.primary },
-  reviewerName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, textAlign: 'right', marginBottom: 2 },
+  reviewAvatarText: { fontSize: 14, fontWeight: '700', color: colors.primary },
+  reviewerName: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, textAlign: 'right', marginBottom: 2 },
   reviewDate: { fontSize: 11, color: colors.textMuted },
-  reviewComment: { fontSize: 13, color: colors.textSecondary, textAlign: 'right', lineHeight: 20 },
+  reviewComment: { fontSize: 13, color: colors.textSecondary, textAlign: 'right', lineHeight: 21 },
   noReviews: { paddingVertical: 20, alignItems: 'center', gap: 8 },
-  noReviewsText: { fontSize: 14, color: colors.textMuted },
+  noReviewsText: { fontSize: 13, color: colors.textMuted },
+
+  // Footer
   footer: {
     position: 'absolute',
     bottom: 0,
@@ -346,4 +392,19 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: colors.border,
   },
+  bookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 14,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  bookBtnText: { color: colors.white, fontSize: 15, fontWeight: '700' },
 });

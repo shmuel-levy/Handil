@@ -6,6 +6,7 @@ const workerRoutes = require('./routes/workers');
 const bookingRoutes = require('./routes/bookings');
 const reviewRoutes = require('./routes/reviews');
 const categoryRoutes = require('./routes/categories');
+const postRoutes = require('./routes/posts');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/workers', workerRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/posts', postRoutes);
 
 // 404 catch-all
 app.use((_req, res) => {
