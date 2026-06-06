@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
-    "dev": "expo start",
-    "mobile": "expo start",
+    "start": "expo start --host lan",
+    "dev": "expo start --host lan",
+    "mobile": "expo start --host lan",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"
