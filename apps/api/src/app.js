@@ -1,21 +1,35 @@
-const express = require("express");
-const cors = require("cors");
+const express = require('express');
+const cors = require('cors');
+
+const authRoutes = require('./routes/auth');
+const workerRoutes = require('./routes/workers');
+const bookingRoutes = require('./routes/bookings');
+const reviewRoutes = require('./routes/reviews');
+const categoryRoutes = require('./routes/categories');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// Browsers often open http://localhost:4000/ — avoid a confusing 404 during local dev.
-app.get("/", (req, res) => {
-  res.status(200).json({
-    service: "handil-api",
-    hint: "Use GET /api/health to verify the server is up."
-  });
+// Root — friendly response for browsers hitting localhost:4000
+app.get('/', (_req, res) => {
+  res.status(200).json({ service: 'handil-api', hint: 'GET /api/health' });
 });
 
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "ok", service: "handil-api" });
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({ status: 'ok', service: 'handil-api' });
+});
+
+app.use('/api/auth', authRoutes);
+app.use('/api/workers', workerRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/categories', categoryRoutes);
+
+// 404 catch-all
+app.use((_req, res) => {
+  res.status(404).json({ message: 'Route not found' });
 });
 
 module.exports = app;
