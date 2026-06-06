@@ -1,0 +1,46 @@
+import { Ionicons } from '@expo/vector-icons';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import React from 'react';
+import ProfileScreen from '../screens/profile/ProfileScreen';
+import { colors } from '../constants/colors';
+import { MainTabParamList } from './types';
+import BookingsStack from './BookingsStack';
+import HomeStack from './HomeStack';
+import SearchStack from './SearchStack';
+
+const Tab = createBottomTabNavigator<MainTabParamList>();
+
+export default function MainNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          paddingBottom: 4,
+          height: 60,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarIcon: ({ focused, color, size }) => {
+          const icons: Record<string, { active: string; inactive: string }> = {
+            HomeTab:     { active: 'home',              inactive: 'home-outline' },
+            SearchTab:   { active: 'search',            inactive: 'search-outline' },
+            BookingsTab: { active: 'calendar',          inactive: 'calendar-outline' },
+            ProfileTab:  { active: 'person',            inactive: 'person-outline' },
+          };
+          const set = icons[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
+          const name = focused ? set.active : set.inactive;
+          return <Ionicons name={name as any} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="HomeTab"     component={HomeStack}    options={{ title: 'בית' }} />
+      <Tab.Screen name="SearchTab"   component={SearchStack}  options={{ title: 'חיפוש' }} />
+      <Tab.Screen name="BookingsTab" component={BookingsStack} options={{ title: 'הזמנות' }} />
+      <Tab.Screen name="ProfileTab"  component={ProfileScreen} options={{ title: 'פרופיל', headerShown: false }} />
+    </Tab.Navigator>
+  );
+}
