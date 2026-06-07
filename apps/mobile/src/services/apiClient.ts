@@ -13,6 +13,9 @@ function hostFromExpoDev(): string | null {
 }
 
 function resolveApiBaseUrl(): string {
+  // Web browser on the same machine as the API server — always use localhost
+  if (Platform.OS === 'web') return 'http://localhost:4000/api';
+
   const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, '');
 

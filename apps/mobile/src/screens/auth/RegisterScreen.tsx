@@ -144,7 +144,7 @@ export default function RegisterScreen({ navigation }: Props) {
             </Text>
           </TouchableOpacity>
         </View>
-        </View>
+        </View>{/* desktopInner */}
       </ScrollView>
     </KeyboardAvoidingView>
   );
