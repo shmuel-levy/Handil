@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { colors } from '../../constants/colors';
 import { getCategoryBySlug } from '../../constants/categories';
 import { WorkerProfile } from '../../types';
@@ -9,14 +9,15 @@ import StarRating from './StarRating';
 interface Props {
   worker: WorkerProfile;
   onPress: () => void;
+  style?: ViewStyle;
 }
 
-export default function WorkerCard({ worker, onPress }: Props) {
+export default function WorkerCard({ worker, onPress, style }: Props) {
   const primaryCategory = worker.categories[0];
   const category = primaryCategory ? getCategoryBySlug(primaryCategory) : null;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity style={[styles.card, style]} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.left}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>

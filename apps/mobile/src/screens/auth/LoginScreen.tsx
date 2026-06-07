@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { colors } from '../../constants/colors';
@@ -25,6 +26,7 @@ export default function LoginScreen({ navigation }: Props) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
+  const { isDesktop } = useBreakpoint();
 
   async function handleLogin() {
     setError('');
@@ -53,10 +55,10 @@ export default function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, isDesktop && styles.containerDesktop]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
+        <View style={[styles.header, isDesktop && styles.headerDesktop]}>
           <View style={styles.logoContainer}>
             <Text style={styles.logoText}>H</Text>
           </View>
@@ -64,7 +66,7 @@ export default function LoginScreen({ navigation }: Props) {
           <Text style={styles.tagline}>מחברים בעלי מקצוע עם דיירים בתל אביב</Text>
         </View>
 
-        <View style={styles.form}>
+        <View style={[styles.form, isDesktop && styles.formDesktop]}>
           <Text style={styles.formTitle}>כניסה לחשבון</Text>
 
           <Input
@@ -109,7 +111,9 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
+  containerDesktop: { alignItems: 'center', paddingHorizontal: 0, paddingVertical: 60 },
   header: { alignItems: 'center', marginBottom: 40 },
+  headerDesktop: { width: 460 },
   logoContainer: {
     width: 72,
     height: 72,
@@ -137,6 +141,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
+  formDesktop: { width: 460, borderWidth: 1, borderColor: colors.border },
   formTitle: {
     fontSize: 20,
     fontWeight: '700',

@@ -14,6 +14,7 @@ import {
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { colors } from '../../constants/colors';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { AuthStackParamList } from '../../navigation/types';
 import { register } from '../../services/authApi';
 import { useAuthStore } from '../../store/authStore';
@@ -36,6 +37,7 @@ export default function RegisterScreen({ navigation }: Props) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
+  const { isDesktop } = useBreakpoint();
 
   async function handleRegister() {
     setError('');
@@ -67,7 +69,8 @@ export default function RegisterScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.container, isDesktop && styles.containerDesktop]} keyboardShouldPersistTaps="handled">
+        <View style={isDesktop ? styles.desktopInner : undefined}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-forward" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
@@ -141,6 +144,7 @@ export default function RegisterScreen({ navigation }: Props) {
             </Text>
           </TouchableOpacity>
         </View>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -149,6 +153,8 @@ export default function RegisterScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
   container: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 56, paddingBottom: 40 },
+  containerDesktop: { alignItems: 'center', paddingHorizontal: 0, paddingTop: 60 },
+  desktopInner: { width: 500, paddingBottom: 40 },
   backBtn: { marginBottom: 20, alignSelf: 'flex-end' },
   title: { fontSize: 28, fontWeight: '800', color: colors.textPrimary, textAlign: 'right', marginBottom: 4 },
   subtitle: { fontSize: 15, color: colors.textMuted, textAlign: 'right', marginBottom: 28 },

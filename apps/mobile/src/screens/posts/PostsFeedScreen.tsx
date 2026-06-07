@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryBySlug } from '../../constants/categories';
 import { colors } from '../../constants/colors';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { PostsStackParamList } from '../../navigation/types';
 import { getMyPosts, getOpenPosts } from '../../services/postsApi';
 import { useAuthStore } from '../../store/authStore';
@@ -115,6 +117,7 @@ export default function PostsFeedScreen() {
   const navigation = useNavigation<Nav>();
   const user = useAuthStore((s) => s.user);
   const isWorker = user?.role === 'worker';
+  const { isDesktop } = useBreakpoint();
 
   const [posts, setPosts] = useState<JobPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,7 +171,26 @@ export default function PostsFeedScreen() {
 
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+      ) : isDesktop ? (
+        /* Desktop: 2-column wrapped grid */
+        <ScrollView
+          contentContainerStyle={styles.desktopGrid}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        >
+          {posts.length === 0 ? (
+            <View style={styles.empty}>
+              <Ionicons name="document-text-outline" size={52} color={colors.textDisabled} />
+              <Text style={styles.emptyTitle}>{isWorker ? 'אין עבודות פתוחות כרגע' : 'עדיין לא פרסמת עבודות'}</Text>
+              <Text style={styles.emptyText}>{isWorker ? 'בדוק שוב בקרוב' : 'לחץ + כדי לפרסם עבודה חדשה'}</Text>
+            </View>
+          ) : posts.map((item) => (
+            <View key={item._id} style={styles.desktopCard}>
+              <PostCard post={item} isWorker={isWorker} onPress={() => navigation.navigate('PostDetail', { postId: item._id })} />
+            </View>
+          ))}
+        </ScrollView>
       ) : (
+        /* Mobile: vertical FlatList */
         <FlatList
           data={posts}
           keyExtractor={(p) => p._id}
@@ -184,12 +206,8 @@ export default function PostsFeedScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="document-text-outline" size={52} color={colors.textDisabled} />
-              <Text style={styles.emptyTitle}>
-                {isWorker ? 'אין עבודות פתוחות כרגע' : 'עדיין לא פרסמת עבודות'}
-              </Text>
-              <Text style={styles.emptyText}>
-                {isWorker ? 'בדוק שוב בקרוב' : 'לחץ + כדי לפרסם עבודה חדשה'}
-              </Text>
+              <Text style={styles.emptyTitle}>{isWorker ? 'אין עבודות פתוחות כרגע' : 'עדיין לא פרסמת עבודות'}</Text>
+              <Text style={styles.emptyText}>{isWorker ? 'בדוק שוב בקרוב' : 'לחץ + כדי לפרסם עבודה חדשה'}</Text>
             </View>
           }
         />
@@ -310,7 +328,16 @@ const styles = StyleSheet.create({
   statusOpen: { backgroundColor: colors.successLight },
   statusTaken: { backgroundColor: colors.border },
   statusText: { fontSize: 12, fontWeight: '700' },
-  empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
+  desktopGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 24,
+    gap: 16,
+    paddingBottom: 40,
+    alignItems: 'flex-start',
+  },
+  desktopCard: { flex: 1, minWidth: 320 },
+  empty: { alignItems: 'center', paddingTop: 80, gap: 12, flex: 1, width: '100%' as any },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.textSecondary, textAlign: 'center' },
   emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
   fab: {

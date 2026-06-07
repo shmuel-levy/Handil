@@ -1,8 +1,11 @@
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import { colors } from '../constants/colors';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import WebSidebar from '../components/layout/WebSidebar';
 import { MainTabParamList } from './types';
 import BookingsStack from './BookingsStack';
 import HomeStack from './HomeStack';
@@ -12,30 +15,38 @@ import SearchStack from './SearchStack';
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainNavigator() {
+  const { isDesktop } = useBreakpoint();
+
   return (
     <Tab.Navigator
+      tabBar={(props) =>
+        isDesktop
+          ? <WebSidebar {...props} />
+          : <BottomTabBar {...props} />
+      }
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          paddingBottom: 4,
-          height: 60,
-        },
+        tabBarStyle: isDesktop
+          ? { display: 'none' as any }
+          : {
+              backgroundColor: colors.surface,
+              borderTopColor: colors.border,
+              paddingBottom: 4,
+              height: 60,
+            },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
         tabBarIcon: ({ focused, color, size }) => {
           const icons: Record<string, { active: string; inactive: string }> = {
-            HomeTab:     { active: 'home',               inactive: 'home-outline' },
-            SearchTab:   { active: 'search',             inactive: 'search-outline' },
-            BookingsTab: { active: 'calendar',           inactive: 'calendar-outline' },
-            PostsTab:    { active: 'newspaper',          inactive: 'newspaper-outline' },
-            ProfileTab:  { active: 'person',             inactive: 'person-outline' },
+            HomeTab:     { active: 'home',      inactive: 'home-outline' },
+            SearchTab:   { active: 'search',    inactive: 'search-outline' },
+            BookingsTab: { active: 'calendar',  inactive: 'calendar-outline' },
+            PostsTab:    { active: 'newspaper', inactive: 'newspaper-outline' },
+            ProfileTab:  { active: 'person',    inactive: 'person-outline' },
           };
           const set = icons[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
-          const name = focused ? set.active : set.inactive;
-          return <Ionicons name={name as any} size={size} color={color} />;
+          return <Ionicons name={(focused ? set.active : set.inactive) as any} size={size} color={color} />;
         },
       })}
     >
