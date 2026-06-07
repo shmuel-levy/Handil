@@ -27,7 +27,11 @@
       "package": "com.handil.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "lang": "he",
+      "backgroundColor": "#F9FAFB",
+      "title": "Handil — שוק בעלי מקצוע"
     }
   }
 }
