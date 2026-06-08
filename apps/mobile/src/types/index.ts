@@ -21,6 +21,14 @@ export interface WorkerProfile {
   city: string;
   yearsExperience: number;
   hourlyRate: number | null;
+  urgencyRates?: {
+    urgent: number | null;
+    today: number | null;
+    week: number | null;
+    flexible: number | null;
+  };
+  offersTeaching?: boolean;
+  teachingRate?: number | null;
   rating: number;
   reviewCount: number;
   isAvailable: boolean;

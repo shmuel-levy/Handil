@@ -156,6 +156,12 @@ function WorkerHeader({
               <Text style={[styles.badgeText, { color: colors.primary }]}>מאומת</Text>
             </View>
           )}
+          {worker.offersTeaching && (
+            <View style={[styles.badge, styles.badgePurple]}>
+              <Ionicons name="school-outline" size={11} color="#7C3AED" />
+              <Text style={[styles.badgeText, { color: '#7C3AED' }]}>מדריך</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -196,6 +202,23 @@ function WorkerHeader({
           <Text style={styles.bio}>{worker.bio}</Text>
         </View>
       ) : null}
+
+      {/* Teaching service */}
+      {worker.offersTeaching && (
+        <View style={styles.teachingBanner}>
+          <View style={styles.teachingIconWrap}>
+            <Ionicons name="school" size={20} color="#7C3AED" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.teachingTitle}>מציע שירות הדרכה</Text>
+            <Text style={styles.teachingSub}>
+              {worker.teachingRate
+                ? `+₪${worker.teachingRate}/שעה — ילמד אותך לתקן לבד בפעם הבאה`
+                : 'ילמד אותך לתקן לבד בפעם הבאה'}
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Categories */}
       {worker.categories.length > 0 && (
@@ -300,6 +323,7 @@ const styles = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10 },
   badgeGreen: { backgroundColor: colors.successLight },
   badgeBlue: { backgroundColor: colors.primaryLight },
+  badgePurple: { backgroundColor: '#F5F3FF' },
   badgeText: { fontSize: 11, fontWeight: '700' },
   availableDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
 
@@ -353,6 +377,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   catChipText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+
+  // Teaching service banner
+  teachingBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginHorizontal: 20, marginBottom: 16,
+    backgroundColor: '#F5F3FF', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#DDD6FE',
+  },
+  teachingIconWrap: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center',
+  },
+  teachingTitle: { fontSize: 13, fontWeight: '700', color: '#5B21B6', textAlign: 'right', marginBottom: 2 },
+  teachingSub: { fontSize: 12, color: '#6D28D9', textAlign: 'right', lineHeight: 18 },
 
   // Reviews
   reviewCard: {

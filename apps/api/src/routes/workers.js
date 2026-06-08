@@ -47,7 +47,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 router.put('/me', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'worker') return res.status(403).json({ message: 'עובדים בלבד' });
-    const { bio, categories, city, yearsExperience, hourlyRate, isAvailable } = req.body;
+    const { bio, categories, city, yearsExperience, hourlyRate, isAvailable, urgencyRates, offersTeaching, teachingRate } = req.body;
     const update = {};
     if (bio !== undefined) update.bio = bio;
     if (categories !== undefined) update.categories = categories;
@@ -55,6 +55,9 @@ router.put('/me', authMiddleware, async (req, res) => {
     if (yearsExperience !== undefined) update.yearsExperience = yearsExperience;
     if (hourlyRate !== undefined) update.hourlyRate = hourlyRate;
     if (isAvailable !== undefined) update.isAvailable = isAvailable;
+    if (urgencyRates !== undefined) update.urgencyRates = urgencyRates;
+    if (offersTeaching !== undefined) update.offersTeaching = offersTeaching;
+    if (teachingRate !== undefined) update.teachingRate = teachingRate;
 
     const worker = await Worker.findOneAndUpdate(
       { user: req.user._id },
