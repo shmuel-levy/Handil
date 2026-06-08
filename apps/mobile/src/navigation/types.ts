@@ -1,6 +1,9 @@
+import { User } from '../types';
+
 export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
+  Onboarding: { token: string; user: User };
 };
 
 export type MainTabParamList = {

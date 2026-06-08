@@ -8,6 +8,8 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, trim: true, default: '' },
     role: { type: String, enum: ['resident', 'worker'], required: true },
     avatar: { type: String, default: '' },
+    city: { type: String, default: '', trim: true },
+    preferredCategories: [{ type: String }],
   },
   { timestamps: true }
 );

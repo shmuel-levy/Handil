@@ -5,6 +5,7 @@ export interface User {
   phone: string;
   role: 'resident' | 'worker';
   avatar: string;
+  city?: string;
 }
 
 export interface WorkerProfile {

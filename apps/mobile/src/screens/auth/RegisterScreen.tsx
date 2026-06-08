@@ -17,7 +17,6 @@ import { colors } from '../../constants/colors';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { AuthStackParamList } from '../../navigation/types';
 import { register } from '../../services/authApi';
-import { useAuthStore } from '../../store/authStore';
 
 type Props = { navigation: NativeStackNavigationProp<AuthStackParamList, 'Register'> };
 
@@ -36,7 +35,6 @@ export default function RegisterScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const setAuth = useAuthStore((s) => s.setAuth);
   const { isDesktop } = useBreakpoint();
 
   async function handleRegister() {
@@ -55,7 +53,7 @@ export default function RegisterScreen({ navigation }: Props) {
         phone: phone.trim() || undefined,
         role,
       });
-      setAuth(token, user);
+      navigation.navigate('Onboarding', { token, user });
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         setError(err.response?.data?.message || 'שגיאת חיבור');

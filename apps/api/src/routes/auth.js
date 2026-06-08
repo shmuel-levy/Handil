@@ -17,6 +17,7 @@ const sanitizeUser = (u) => ({
   phone: u.phone,
   role: u.role,
   avatar: u.avatar,
+  city: u.city || '',
 });
 
 // POST /api/auth/register
@@ -70,6 +71,24 @@ router.post('/login', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', authMiddleware, (req, res) => {
   res.json(sanitizeUser(req.user));
+});
+
+// PUT /api/auth/me  — save onboarding data (city, preferred categories)
+router.put('/me', authMiddleware, async (req, res) => {
+  try {
+    const { city, preferredCategories } = req.body;
+    const update = {};
+    if (city !== undefined) update.city = city;
+    if (preferredCategories !== undefined) update.preferredCategories = preferredCategories;
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: update },
+      { new: true }
+    ).select('-password');
+    res.json({ user: sanitizeUser(user) });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 module.exports = router;
