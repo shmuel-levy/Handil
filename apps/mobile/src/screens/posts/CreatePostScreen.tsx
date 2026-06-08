@@ -153,7 +153,6 @@ export default function CreatePostScreen() {
                     styles.catItemText,
                     category === cat.slug && styles.catItemTextSelected,
                   ]}
-                  numberOfLines={1}
                 >
                   {cat.name_he}
                 </Text>
@@ -273,7 +272,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   catItemSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  catItemText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, flex: 1, textAlign: 'right' },
+  catItemText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, textAlign: 'right', flexShrink: 1 },
   catItemTextSelected: { color: colors.white },
   budgetRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   budgetInput: { flex: 1 },

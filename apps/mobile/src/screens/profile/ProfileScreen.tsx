@@ -136,6 +136,11 @@ export default function ProfileScreen() {
                       style={[styles.catChip, selectedCats.includes(cat.slug) && styles.catChipActive]}
                       onPress={() => toggleCategory(cat.slug)}
                     >
+                      <Ionicons
+                        name={cat.icon as any}
+                        size={14}
+                        color={selectedCats.includes(cat.slug) ? colors.white : colors.primary}
+                      />
                       <Text style={[styles.catChipText, selectedCats.includes(cat.slug) && styles.catChipTextActive]}>
                         {cat.name_he}
                       </Text>
@@ -244,8 +249,11 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, textAlign: 'right', marginBottom: 8 },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1.5,
     borderColor: colors.border,

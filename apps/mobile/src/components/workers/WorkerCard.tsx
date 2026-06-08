@@ -31,37 +31,40 @@ export default function WorkerCard({ worker, onPress, style }: Props) {
         <View style={styles.topRow}>
           <Text style={styles.name}>{worker.user.name}</Text>
           {worker.isVerified && (
-            <Ionicons name="checkmark-circle" size={16} color={colors.primary} style={styles.verifiedIcon} />
+            <Ionicons name="checkmark-circle" size={15} color={colors.primary} style={styles.verifiedIcon} />
           )}
         </View>
 
         {category && (
-          <Text style={styles.category}>{category.name_he}</Text>
+          <View style={styles.catBadge}>
+            <Ionicons name={category.icon as any} size={11} color={colors.primary} />
+            <Text style={styles.catBadgeText}>{category.name_he}</Text>
+          </View>
         )}
 
-        <StarRating rating={worker.rating} reviewCount={worker.reviewCount} size={13} />
+        <StarRating rating={worker.rating} reviewCount={worker.reviewCount} size={12} />
 
         <View style={styles.meta}>
           <View style={styles.metaItem}>
-            <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+            <Ionicons name="location-outline" size={11} color={colors.textMuted} />
             <Text style={styles.metaText}>{worker.city}</Text>
           </View>
           {worker.hourlyRate && (
             <View style={styles.metaItem}>
-              <Ionicons name="cash-outline" size={12} color={colors.textMuted} />
+              <Ionicons name="cash-outline" size={11} color={colors.textMuted} />
               <Text style={styles.metaText}>{worker.hourlyRate}₪/שעה</Text>
             </View>
           )}
           {worker.yearsExperience > 0 && (
             <View style={styles.metaItem}>
-              <Ionicons name="briefcase-outline" size={12} color={colors.textMuted} />
+              <Ionicons name="briefcase-outline" size={11} color={colors.textMuted} />
               <Text style={styles.metaText}>{worker.yearsExperience} שנ׳</Text>
             </View>
           )}
         </View>
       </View>
 
-      <Ionicons name="chevron-back" size={20} color={colors.textDisabled} />
+      <Ionicons name="chevron-back" size={18} color={colors.textDisabled} />
     </TouchableOpacity>
   );
 }
@@ -72,14 +75,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: 16,
+    padding: 14,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     elevation: 2,
   },
   left: { position: 'relative', marginEnd: 14 },
@@ -87,28 +90,39 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 20, fontWeight: '700', color: colors.primary },
+  avatarText: { fontSize: 20, fontWeight: '800', color: colors.white },
   availableDot: {
     position: 'absolute',
     bottom: 1,
     end: 1,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
     backgroundColor: colors.success,
     borderWidth: 2,
     borderColor: colors.surface,
   },
   body: { flex: 1 },
-  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   name: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, textAlign: 'right' },
   verifiedIcon: { marginStart: 4 },
-  category: { fontSize: 13, color: colors.textMuted, textAlign: 'right', marginBottom: 4 },
-  meta: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, gap: 8 },
+  catBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 5,
+  },
+  catBadgeText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 5, gap: 8 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  metaText: { fontSize: 12, color: colors.textMuted },
+  metaText: { fontSize: 11, color: colors.textMuted },
 });
