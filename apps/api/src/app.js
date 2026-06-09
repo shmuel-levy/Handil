@@ -13,6 +13,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Request logger — shows every incoming call in the terminal
+app.use((req, _res, next) => {
+  const ts = new Date().toTimeString().slice(0, 8);
+  const body = req.body && Object.keys(req.body).length
+    ? ' ' + JSON.stringify(req.body).slice(0, 120)
+    : '';
+  console.log(`📨 [${ts}] ${req.method} ${req.path}${body}`);
+  next();
+});
+
 // Root — friendly response for browsers hitting localhost:4000
 app.get('/', (_req, res) => {
   res.status(200).json({ service: 'handil-api', hint: 'GET /api/health' });
