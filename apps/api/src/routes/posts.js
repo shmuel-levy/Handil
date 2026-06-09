@@ -119,10 +119,11 @@ router.post('/:id/accept', auth, async (req, res) => {
 // Resident closes their own post
 router.post('/:id/close', auth, async (req, res) => {
   try {
-    const post = await JobPost.findOne({ _id: req.params.id, resident: req.user.id });
+    const post = await JobPost.findOne({ _id: req.params.id, resident: req.user._id });
     if (!post) return res.status(404).json({ message: 'פוסט לא נמצא' });
     post.status = 'closed';
     await post.save();
+    await post.populate('resident', 'name avatar phone');
     res.json({ post });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });

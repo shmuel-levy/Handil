@@ -57,10 +57,14 @@ export default function CreatePostScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
       selectionLimit: 4,
-      quality: 0.7,
+      quality: 0.5,
+      base64: true,
     });
     if (!result.canceled) {
-      setImages((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 4));
+      const uris = result.assets.map((a) =>
+        a.base64 ? `data:image/jpeg;base64,${a.base64}` : a.uri
+      );
+      setImages((prev) => [...prev, ...uris].slice(0, 4));
     }
   };
 
@@ -81,16 +85,12 @@ export default function CreatePostScreen() {
         images,
         location: 'תל אביב',
       });
-      Alert.alert(
-        '✅ הפוסט פורסם!',
-        'בעלי מקצוע מהאזור שלך יוכלו לראות אותו ולפנות אליך.',
-        [{ text: 'מצוין', onPress: () => navigation.navigate('PostsFeed') }]
-      );
+      // Navigate immediately — no Alert callback (unreliable on web)
+      navigation.navigate('PostsFeed');
     } catch (e: any) {
       const msg = e?.response?.data?.message ?? e?.message ?? 'שגיאת חיבור לשרת';
       logger.error('CreatePost', 'submit failed', msg);
       setInlineError(msg);
-    } finally {
       setSubmitting(false);
     }
   };
@@ -231,8 +231,9 @@ export default function CreatePostScreen() {
 
           {/* Submit */}
           <TouchableOpacity
-            style={[styles.submitBtn, (!title.trim() || !category) && styles.submitBtnDisabled]}
+            style={[styles.submitBtn, (!title.trim() || !category || submitting) && styles.submitBtnDisabled]}
             onPress={handleSubmit}
+            disabled={submitting}
             activeOpacity={0.85}
           >
             <Ionicons name="send-outline" size={18} color={colors.white} />

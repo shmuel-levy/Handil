@@ -38,6 +38,8 @@ export default function PostDetailScreen() {
   const [post, setPost] = useState<JobPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   useEffect(() => {
     getPost(params.postId)
@@ -89,22 +91,17 @@ export default function PostDetailScreen() {
   };
 
   const handleClose = async () => {
-    if (!post) return;
-    Alert.alert('סגור פוסט', 'האם לסגור את הפוסט? לא ניתן לשחזר.', [
-      { text: 'ביטול', style: 'cancel' },
-      {
-        text: 'סגור',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            const { post: updated } = await closePost(post._id);
-            setPost(updated);
-          } catch {
-            Alert.alert('שגיאה', 'לא ניתן לסגור את הפוסט');
-          }
-        },
-      },
-    ]);
+    if (!post || closing) return;
+    setClosing(true);
+    try {
+      const { post: updated } = await closePost(post._id);
+      setPost(updated);
+      setConfirmClose(false);
+    } catch {
+      Alert.alert('שגיאה', 'לא ניתן לסגור את הפוסט');
+    } finally {
+      setClosing(false);
+    }
   };
 
   if (loading) {
@@ -186,7 +183,7 @@ export default function PostDetailScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.personName}>{post.resident.name}</Text>
-              {post.resident.phone && isWorker && post.status === 'accepted' && post.acceptedBy?._id === user?.id && (
+              {!!post.resident.phone && isWorker && post.status === 'accepted' && post.acceptedBy?._id === user?.id && (
                 <TouchableOpacity
                   onPress={() => Linking.openURL(`tel:${post.resident.phone}`)}
                   style={styles.callBtn}
@@ -237,9 +234,32 @@ export default function PostDetailScreen() {
 
       {isOwner && post.status === 'open' && (
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
-            <Text style={styles.closeBtnText}>סגור פוסט</Text>
-          </TouchableOpacity>
+          {confirmClose ? (
+            <View style={styles.confirmRow}>
+              <TouchableOpacity
+                style={[styles.confirmYes, closing && { opacity: 0.6 }]}
+                onPress={handleClose}
+                disabled={closing}
+              >
+                {closing ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Text style={styles.confirmYesText}>כן, סגור פוסט</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmNo}
+                onPress={() => setConfirmClose(false)}
+              >
+                <Text style={styles.confirmNoText}>ביטול</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setConfirmClose(true)}>
+              <Ionicons name="close-circle-outline" size={18} color={colors.error} />
+              <Text style={styles.closeBtnText}>סגור פוסט</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </SafeAreaView>
@@ -353,12 +373,22 @@ const styles = StyleSheet.create({
   },
   acceptBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
   closeBtn: {
-    borderWidth: 1,
-    borderColor: colors.error,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1.5, borderColor: colors.error,
+    paddingVertical: 14, borderRadius: 14,
   },
   closeBtnText: { color: colors.error, fontSize: 15, fontWeight: '700' },
+  confirmRow: { flexDirection: 'row', gap: 10 },
+  confirmYes: {
+    flex: 1, backgroundColor: colors.error,
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 14, borderRadius: 14,
+  },
+  confirmYesText: { color: colors.white, fontSize: 14, fontWeight: '700' },
+  confirmNo: {
+    flex: 1, borderWidth: 1.5, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 14, borderRadius: 14,
+  },
+  confirmNoText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
 });
