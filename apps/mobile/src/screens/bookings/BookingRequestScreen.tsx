@@ -79,8 +79,8 @@ export default function BookingRequestScreen() {
             {params.workerName} יקבל את בקשתך וייצור איתך קשר בקרוב
           </Text>
           <Button
-            title="לכל ההזמנות"
-            onPress={() => navigation.navigate('Home')}
+            title="לצפייה בהזמנות"
+            onPress={() => navigation.getParent<any>()?.navigate('BookingsTab')}
             style={styles.successBtn}
           />
         </View>

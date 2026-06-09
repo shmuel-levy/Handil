@@ -6,13 +6,14 @@ import { SIDEBAR_WIDTH } from '../components/layout/WebSidebar';
 import RootNavigator from '../navigation/RootNavigator';
 import { colors } from '../constants/colors';
 
-// Force RTL layout for Hebrew — applies on the next JS reload in Expo Go
-if (Platform.OS !== 'web') {
-  I18nManager.allowRTL(true);
+// Enable RTL for Hebrew — safe to call multiple times (no-op if already RTL)
+I18nManager.allowRTL(true);
+if (Platform.OS !== 'web' && !I18nManager.isRTL) {
   I18nManager.forceRTL(true);
+  // Note: Expo Go requires a manual reload after first RTL enable
 }
 
-// Web: set document direction so all CSS layout flips to RTL
+// Web: set document direction so browser layout flips to RTL
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   document.documentElement.dir = 'rtl';
   document.documentElement.lang = 'he';

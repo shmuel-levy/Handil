@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import axios from 'axios';
 import React, { useState } from 'react';
@@ -10,10 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useBreakpoint } from '../../hooks/useBreakpoint';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { colors } from '../../constants/colors';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { AuthStackParamList } from '../../navigation/types';
 import { login } from '../../services/authApi';
 import { useAuthStore } from '../../store/authStore';
@@ -40,7 +41,7 @@ export default function LoginScreen({ navigation }: Props) {
       setAuth(token, user);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'שגיאת חיבור');
+        setError(err.response?.data?.message || 'שגיאת חיבור — בדוק אימייל וסיסמה');
       } else {
         setError('אירעה שגיאה, נסה שוב');
       }
@@ -57,36 +58,47 @@ export default function LoginScreen({ navigation }: Props) {
       <ScrollView
         contentContainerStyle={[styles.container, isDesktop && styles.containerDesktop]}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
+        {/* ── Logo / Brand ── */}
         <View style={[styles.header, isDesktop && styles.headerDesktop]}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>H</Text>
+            <Ionicons name="hammer" size={34} color={colors.white} />
           </View>
           <Text style={styles.appName}>Handil</Text>
-          <Text style={styles.tagline}>מחברים בעלי מקצוע עם דיירים בתל אביב</Text>
+          <Text style={styles.tagline}>מחברים בעלי מקצוע עם דיירים בכל רחבי ישראל</Text>
         </View>
 
+        {/* ── Form card ── */}
         <View style={[styles.form, isDesktop && styles.formDesktop]}>
-          <Text style={styles.formTitle}>כניסה לחשבון</Text>
+          <Text style={styles.formTitle}>ברוך הבא בחזרה</Text>
+          <Text style={styles.formSub}>הכנס את הפרטים שלך להתחברות</Text>
 
-          <Input
-            label="אימייל"
-            placeholder="your@email.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-          <Input
-            label="סיסמה"
-            placeholder="לפחות 6 תווים"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <View style={styles.fields}>
+            <Input
+              label="אימייל"
+              placeholder="your@email.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+            <Input
+              label="סיסמה"
+              placeholder="לפחות 6 תווים"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {error ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
           <Button
             title="כניסה"
@@ -96,11 +108,18 @@ export default function LoginScreen({ navigation }: Props) {
             style={styles.submitBtn}
           />
 
-          <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.linkRow}>
-            <Text style={styles.linkText}>
-              אין לך חשבון?{' '}
-              <Text style={styles.linkBold}>הירשם עכשיו</Text>
-            </Text>
+          <View style={styles.dividerRow}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>אין לך חשבון?</Text>
+            <View style={styles.divider} />
+          </View>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Register')}
+            style={styles.registerBtn}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.registerBtnText}>הירשם עכשיו — זה בחינם</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -110,56 +129,79 @@ export default function LoginScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
-  container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
-  containerDesktop: { alignItems: 'center', paddingHorizontal: 0, paddingVertical: 60 },
-  header: { alignItems: 'center', marginBottom: 40 },
+  container: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  containerDesktop: { alignItems: 'center', paddingHorizontal: 0 },
+
+  // Header / Brand
+  header: { alignItems: 'center', marginBottom: 36 },
   headerDesktop: { width: 460 },
   logoContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+    width: 76, height: 76, borderRadius: 22,
     backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.38, shadowRadius: 14, elevation: 8,
   },
-  logoText: { fontSize: 36, fontWeight: '900', color: colors.white },
-  appName: { fontSize: 32, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.5 },
-  tagline: { fontSize: 14, color: colors.textMuted, marginTop: 6, textAlign: 'center' },
+  appName: {
+    fontSize: 34, fontWeight: '900', color: colors.textPrimary,
+    letterSpacing: -0.5, marginBottom: 8,
+  },
+  tagline: {
+    fontSize: 14, color: colors.textMuted,
+    textAlign: 'center', lineHeight: 22, paddingHorizontal: 12,
+  },
+
+  // Form card
   form: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 24, padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07, shadowRadius: 16, elevation: 4,
+    borderWidth: 1, borderColor: colors.borderLight,
   },
   formDesktop: { width: 460, borderWidth: 1, borderColor: colors.border },
   formTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'right',
-    marginBottom: 20,
+    fontSize: 22, fontWeight: '800', color: colors.textPrimary,
+    textAlign: 'right', marginBottom: 4,
   },
-  errorText: {
-    color: colors.error,
-    fontSize: 13,
-    textAlign: 'right',
-    marginBottom: 12,
+  formSub: {
+    fontSize: 14, color: colors.textMuted,
+    textAlign: 'right', marginBottom: 24,
+  },
+
+  fields: { gap: 4 },
+
+  // Error
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: colors.errorLight,
-    padding: 10,
-    borderRadius: 8,
+    padding: 12, borderRadius: 12, marginTop: 8, marginBottom: 4,
   },
-  submitBtn: { marginTop: 4 },
-  linkRow: { marginTop: 16, alignItems: 'center' },
-  linkText: { fontSize: 14, color: colors.textMuted },
-  linkBold: { color: colors.primary, fontWeight: '700' },
+  errorText: { color: colors.error, fontSize: 13, flex: 1, textAlign: 'right' },
+
+  submitBtn: { marginTop: 20 },
+
+  // Divider
+  dividerRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginTop: 24, marginBottom: 16,
+  },
+  divider: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
+
+  // Register button
+  registerBtn: {
+    backgroundColor: colors.background,
+    borderWidth: 2, borderColor: colors.primary,
+    paddingVertical: 13, borderRadius: 14, alignItems: 'center',
+  },
+  registerBtnText: { fontSize: 15, fontWeight: '700', color: colors.primary },
 });

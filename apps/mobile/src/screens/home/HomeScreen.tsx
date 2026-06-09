@@ -58,10 +58,11 @@ export default function HomeScreen() {
 
   useEffect(() => {
     getWorkers({ page: 1 })
-      .then(({ workers }) => setTopWorkers(workers.slice(0, isDesktop ? 12 : 10)))
+      .then(({ workers }) => setTopWorkers(workers.slice(0, 12)))
       .catch(() => setTopWorkers([]))
       .finally(() => setLoading(false));
-  }, [isDesktop]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const firstName = user?.name?.split(' ')[0] ?? '';
   const isWorker = user?.role === 'worker';
@@ -403,17 +404,19 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
   sectionLink: { fontSize: 13, color: colors.primary, fontWeight: '600' },
 
-  // ── Mobile categories — no fixed width so text fits
-  categoriesRow: { paddingHorizontal: 20, gap: 14, paddingBottom: 4 },
-  categoryPill: { alignItems: 'center', paddingHorizontal: 2 },
+  // ── Mobile categories
+  categoriesRow: { paddingHorizontal: 20, gap: 14, paddingVertical: 10 },
+  categoryPill: { alignItems: 'center', paddingHorizontal: 4, minWidth: 64 },
   categoryIcon: {
-    width: 58, height: 58, borderRadius: 16,
+    width: 58, height: 58, borderRadius: 18,
     backgroundColor: colors.primaryLight,
     alignItems: 'center', justifyContent: 'center', marginBottom: 7,
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12, shadowRadius: 4, elevation: 2,
   },
   categoryName: {
     fontSize: 11, fontWeight: '600', color: colors.textSecondary,
-    textAlign: 'center', maxWidth: 72,
+    textAlign: 'center', flexWrap: 'wrap', maxWidth: 68,
   },
 
   // ── Desktop categories — no minWidth so content determines size

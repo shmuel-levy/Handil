@@ -83,9 +83,11 @@ export default function CreatePostScreen() {
         urgency,
         images,
       });
-      Alert.alert('', 'הפוסט פורסם בהצלחה! בעלי מקצוע יוכלו לראות אותו כעת.', [
-        { text: 'מצוין', onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert(
+        '✅ הפוסט פורסם!',
+        'בעלי מקצוע מהאזור שלך יוכלו לראות אותו ולפנות אליך.',
+        [{ text: 'מצוין', onPress: () => navigation.navigate('PostsFeed') }]
+      );
     } catch (e: any) {
       Alert.alert('שגיאה', e?.response?.data?.message ?? 'לא ניתן לפרסם את הפוסט');
     } finally {

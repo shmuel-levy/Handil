@@ -19,12 +19,11 @@ import { AuthStackParamList } from '../../navigation/types';
 import { register } from '../../services/authApi';
 
 type Props = { navigation: NativeStackNavigationProp<AuthStackParamList, 'Register'> };
-
 type Role = 'resident' | 'worker';
 
 const ROLES: { value: Role; title: string; subtitle: string; icon: string }[] = [
-  { value: 'resident', title: 'דייר', subtitle: 'אני מחפש בעל מקצוע', icon: 'home-outline' },
-  { value: 'worker', title: 'בעל מקצוע', subtitle: 'אני מציע שירותים', icon: 'construct-outline' },
+  { value: 'resident', title: 'דייר',        subtitle: 'אני מחפש בעל מקצוע', icon: 'home-outline' },
+  { value: 'worker',   title: 'בעל מקצוע',   subtitle: 'אני מציע שירותים',   icon: 'construct-outline' },
 ];
 
 export default function RegisterScreen({ navigation }: Props) {
@@ -67,82 +66,110 @@ export default function RegisterScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerStyle={[styles.container, isDesktop && styles.containerDesktop]} keyboardShouldPersistTaps="handled">
-        <View style={isDesktop ? styles.desktopInner : undefined}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-forward" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={[styles.container, isDesktop && styles.containerDesktop]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={isDesktop ? styles.desktopInner : styles.inner}>
 
-        <Text style={styles.title}>יצירת חשבון</Text>
-        <Text style={styles.subtitle}>הצטרפו לקהילת Handil</Text>
+          {/* Back button */}
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-forward" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
 
-        {/* Role selection */}
-        <Text style={styles.sectionLabel}>אני...</Text>
-        <View style={styles.roleRow}>
-          {ROLES.map((r) => (
-            <TouchableOpacity
-              key={r.value}
-              style={[styles.roleCard, role === r.value && styles.roleCardActive]}
-              onPress={() => setRole(r.value)}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={r.icon as any}
-                size={28}
-                color={role === r.value ? colors.primary : colors.textMuted}
-              />
-              <Text style={[styles.roleTitle, role === r.value && styles.roleTitleActive]}>
-                {r.title}
-              </Text>
-              <Text style={styles.roleSubtitle}>{r.subtitle}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+          {/* Header */}
+          <Text style={styles.title}>יצירת חשבון</Text>
+          <Text style={styles.subtitle}>הצטרפו לקהילת Handil — בחינם לחלוטין</Text>
 
-        <View style={styles.form}>
-          <Input label="שם מלא" placeholder="ישראל ישראלי" value={name} onChangeText={setName} autoComplete="name" />
-          <Input
-            label="אימייל"
-            placeholder="your@email.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-          <Input
-            label="טלפון (אופציונלי)"
-            placeholder="05X-XXXXXXX"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
-          <Input
-            label="סיסמה"
-            placeholder="לפחות 6 תווים"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          {/* Role selection */}
+          <View style={styles.roleSection}>
+            <Text style={styles.sectionLabel}>אני רוצה...</Text>
+            <View style={styles.roleRow}>
+              {ROLES.map((r) => (
+                <TouchableOpacity
+                  key={r.value}
+                  style={[styles.roleCard, role === r.value && styles.roleCardActive]}
+                  onPress={() => setRole(r.value)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.roleIconWrap, role === r.value && styles.roleIconWrapActive]}>
+                    <Ionicons
+                      name={r.icon as any}
+                      size={26}
+                      color={role === r.value ? colors.white : colors.primary}
+                    />
+                  </View>
+                  <Text style={[styles.roleTitle, role === r.value && styles.roleTitleActive]}>
+                    {r.title}
+                  </Text>
+                  <Text style={styles.roleSubtitle}>{r.subtitle}</Text>
+                  {role === r.value && (
+                    <View style={styles.roleCheck}>
+                      <Ionicons name="checkmark" size={12} color={colors.white} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {/* Form fields */}
+          <View style={styles.fields}>
+            <Input
+              label="שם מלא"
+              placeholder="ישראל ישראלי"
+              value={name}
+              onChangeText={setName}
+              autoComplete="name"
+            />
+            <Input
+              label="אימייל"
+              placeholder="your@email.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+            <Input
+              label="טלפון (אופציונלי)"
+              placeholder="05X-XXXXXXX"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+            />
+            <Input
+              label="סיסמה"
+              placeholder="לפחות 6 תווים"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+
+          {error ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
           <Button
-            title="הרשמה"
+            title="הרשמה והמשך"
             onPress={handleRegister}
             loading={loading}
             size="lg"
             style={styles.submitBtn}
           />
 
-          <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.linkRow}>
-            <Text style={styles.linkText}>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.loginRow}>
+            <Text style={styles.loginText}>
               כבר יש לך חשבון?{' '}
-              <Text style={styles.linkBold}>כניסה</Text>
+              <Text style={styles.loginLink}>כניסה</Text>
             </Text>
           </TouchableOpacity>
         </View>
-        </View>{/* desktopInner */}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -150,39 +177,74 @@ export default function RegisterScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
-  container: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 56, paddingBottom: 40 },
-  containerDesktop: { alignItems: 'center', paddingHorizontal: 0, paddingTop: 60 },
-  desktopInner: { width: 500, paddingBottom: 40 },
-  backBtn: { marginBottom: 20, alignSelf: 'flex-end' },
-  title: { fontSize: 28, fontWeight: '800', color: colors.textPrimary, textAlign: 'right', marginBottom: 4 },
-  subtitle: { fontSize: 15, color: colors.textMuted, textAlign: 'right', marginBottom: 28 },
-  sectionLabel: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, textAlign: 'right', marginBottom: 10 },
-  roleRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  container: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 20 },
+  containerDesktop: { alignItems: 'center', paddingHorizontal: 0 },
+  inner: { flex: 1 },
+  desktopInner: { width: 520, paddingVertical: 24 },
+
+  backBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+    alignSelf: 'flex-end', marginBottom: 24,
+  },
+
+  title: {
+    fontSize: 30, fontWeight: '900', color: colors.textPrimary,
+    textAlign: 'right', marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 14, color: colors.textMuted,
+    textAlign: 'right', marginBottom: 28, lineHeight: 22,
+  },
+
+  // Role selection
+  roleSection: { marginBottom: 28 },
+  sectionLabel: {
+    fontSize: 15, fontWeight: '700', color: colors.textSecondary,
+    textAlign: 'right', marginBottom: 12,
+  },
+  roleRow: { flexDirection: 'row', gap: 12 },
   roleCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
+    flex: 1, backgroundColor: colors.surface,
+    borderRadius: 18, padding: 18, alignItems: 'center',
+    borderWidth: 2, borderColor: colors.border,
+    position: 'relative',
   },
   roleCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-  roleTitle: { fontSize: 15, fontWeight: '700', color: colors.textSecondary, marginTop: 8 },
-  roleTitleActive: { color: colors.primary },
-  roleSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 4, textAlign: 'center' },
-  form: {},
-  errorText: {
-    color: colors.error,
-    fontSize: 13,
-    textAlign: 'right',
-    marginBottom: 12,
-    backgroundColor: colors.errorLight,
-    padding: 10,
-    borderRadius: 8,
+  roleIconWrap: {
+    width: 52, height: 52, borderRadius: 15,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
-  submitBtn: { marginTop: 4 },
-  linkRow: { marginTop: 16, alignItems: 'center' },
-  linkText: { fontSize: 14, color: colors.textMuted },
-  linkBold: { color: colors.primary, fontWeight: '700' },
+  roleIconWrapActive: { backgroundColor: colors.primary },
+  roleTitle: {
+    fontSize: 16, fontWeight: '800', color: colors.textSecondary, marginBottom: 4,
+  },
+  roleTitleActive: { color: colors.primaryDark },
+  roleSubtitle: {
+    fontSize: 12, color: colors.textMuted, textAlign: 'center', lineHeight: 18,
+  },
+  roleCheck: {
+    position: 'absolute', top: 10, left: 10,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Fields
+  fields: { gap: 4, marginBottom: 8 },
+
+  // Error
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.errorLight,
+    padding: 13, borderRadius: 12, marginBottom: 12,
+  },
+  errorText: { color: colors.error, fontSize: 13, flex: 1, textAlign: 'right' },
+
+  submitBtn: { marginTop: 12, marginBottom: 20 },
+
+  loginRow: { alignItems: 'center', paddingBottom: 20 },
+  loginText: { fontSize: 14, color: colors.textMuted },
+  loginLink: { color: colors.primary, fontWeight: '800' },
 });

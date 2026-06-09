@@ -47,7 +47,7 @@ export default function PostDetailScreen() {
   }, [params.postId]);
 
   const isWorker = user?.role === 'worker';
-  const isOwner = post?.resident._id === user?.id;
+  const isOwner = post?.resident?._id === user?.id;
   const canAccept = isWorker && post?.status === 'open';
   const cat = post ? getCategoryBySlug(post.category) : null;
 
