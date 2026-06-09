@@ -12,11 +12,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { checkMyQuote } from '../../services/quotesApi';
+import { Quote } from '../../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryBySlug } from '../../constants/categories';
 import { colors } from '../../constants/colors';
 import { PostsStackParamList } from '../../navigation/types';
-import { acceptPost, closePost, getPost } from '../../services/postsApi';
+import { closePost, getPost } from '../../services/postsApi';
 import { useAuthStore } from '../../store/authStore';
 import { JobPost } from '../../types';
 
@@ -35,60 +37,33 @@ export default function PostDetailScreen() {
   const { params } = useRoute<Route>();
   const user = useAuthStore((s) => s.user);
 
+  const isWorker = user?.role === 'worker';
+
   const [post, setPost] = useState<JobPost | null>(null);
+  const [quoteCount, setQuoteCount] = useState(0);
+  const [myQuote, setMyQuote] = useState<Quote | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
-  const [accepting, setAccepting] = useState(false);
   const [closing, setClosing] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
 
   useEffect(() => {
     getPost(params.postId)
-      .then(({ post: p }) => setPost(p))
+      .then(({ post: p, quoteCount: qc }: any) => {
+        setPost(p);
+        setQuoteCount(qc ?? 0);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [params.postId]);
 
-  const isWorker = user?.role === 'worker';
+  useEffect(() => {
+    if (!isWorker) { setMyQuote(null); return; }
+    checkMyQuote(params.postId)
+      .then(({ quote }) => setMyQuote(quote))
+      .catch(() => setMyQuote(null));
+  }, [params.postId, isWorker]);
   const isOwner = post?.resident?._id === user?.id;
-  const canAccept = isWorker && post?.status === 'open';
   const cat = post ? getCategoryBySlug(post.category) : null;
-
-  const handleAccept = async () => {
-    if (!post) return;
-    Alert.alert(
-      'קבל עבודה',
-      `האם אתה בטוח שברצונך לקבל את העבודה "${post.title}"?`,
-      [
-        { text: 'ביטול', style: 'cancel' },
-        {
-          text: 'כן, קבל',
-          style: 'default',
-          onPress: async () => {
-            setAccepting(true);
-            try {
-              const { post: updated } = await acceptPost(post._id);
-              setPost(updated);
-              Alert.alert(
-                '✅ קיבלת את העבודה!',
-                'נוספה להזמנות שלך. ניתן ליצור קשר עם הלקוח מהזמנות.',
-                [
-                  {
-                    text: 'לצפייה בהזמנות',
-                    onPress: () => navigation.getParent<any>()?.navigate('BookingsTab'),
-                  },
-                  { text: 'הישאר כאן', style: 'cancel' },
-                ]
-              );
-            } catch (e: any) {
-              Alert.alert('שגיאה', e?.response?.data?.message ?? 'לא ניתן לקבל את העבודה');
-            } finally {
-              setAccepting(false);
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const handleClose = async () => {
     if (!post || closing) return;
@@ -212,22 +187,53 @@ export default function PostDetailScreen() {
         )}
       </ScrollView>
 
-      {/* Footer actions */}
-      {canAccept && (
+      {/* Footer — quote actions */}
+      {post.status === 'open' && isWorker && (
+        <View style={styles.footer}>
+          {myQuote === undefined ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : myQuote ? (
+            /* Already submitted a quote */
+            <View style={styles.myQuoteBanner}>
+              <Ionicons name="checkmark-circle" size={18}
+                color={myQuote.status === 'accepted' ? colors.success : myQuote.status === 'rejected' ? colors.error : colors.primary}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.myQuoteTitle}>
+                  {myQuote.status === 'pending'  && 'הצעתך בהמתנה'}
+                  {myQuote.status === 'accepted' && '🎉 הצעתך התקבלה!'}
+                  {myQuote.status === 'rejected' && 'הצעתך נדחתה'}
+                </Text>
+                <Text style={styles.myQuotePrice}>₪{myQuote.proposedPrice.toLocaleString('he-IL')}</Text>
+              </View>
+            </View>
+          ) : (
+            /* Not submitted yet */
+            <TouchableOpacity
+              style={styles.quoteBtn}
+              onPress={() => navigation.navigate('QuoteSubmit', { postId: post._id, postTitle: post.title })}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="paper-plane-outline" size={20} color={colors.white} />
+              <Text style={styles.quoteBtnText}>שלח הצעת מחיר</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Resident: view quotes button */}
+      {isOwner && post.status !== 'closed' && (
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.acceptBtn, accepting && { opacity: 0.6 }]}
-            onPress={handleAccept}
-            disabled={accepting}
+            style={styles.quotesViewBtn}
+            onPress={() => navigation.navigate('QuotesList', { postId: post._id, postTitle: post.title })}
+            activeOpacity={0.85}
           >
-            {accepting ? (
-              <ActivityIndicator size="small" color={colors.white} />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle-outline" size={20} color={colors.white} />
-                <Text style={styles.acceptBtnText}>קבל עבודה</Text>
-              </>
-            )}
+            <Ionicons name="people-outline" size={18} color={colors.primary} />
+            <Text style={styles.quotesViewBtnText}>
+              {quoteCount > 0 ? `${quoteCount} הצעות מחיר — בחר בעל מקצוע` : 'הצעות מחיר (0)'}
+            </Text>
+            <Ionicons name="chevron-back" size={15} color={colors.primary} />
           </TouchableOpacity>
         </View>
       )}
@@ -378,6 +384,25 @@ const styles = StyleSheet.create({
     paddingVertical: 14, borderRadius: 14,
   },
   closeBtnText: { color: colors.error, fontSize: 15, fontWeight: '700' },
+  // Quote system
+  quoteBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: colors.primary, paddingVertical: 15, borderRadius: 14,
+  },
+  quoteBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  myQuoteBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.primaryLight, borderRadius: 14,
+    padding: 14, borderWidth: 1, borderColor: colors.primary + '30',
+  },
+  myQuoteTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, textAlign: 'right' },
+  myQuotePrice: { fontSize: 20, fontWeight: '900', color: colors.primary, marginTop: 2 },
+  quotesViewBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.primaryLight, borderRadius: 14, padding: 15,
+    borderWidth: 1.5, borderColor: colors.primary + '40',
+  },
+  quotesViewBtnText: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.primary, textAlign: 'right' },
   confirmRow: { flexDirection: 'row', gap: 10 },
   confirmYes: {
     flex: 1, backgroundColor: colors.error,

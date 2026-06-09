@@ -55,6 +55,26 @@ export interface Booking {
   createdAt: string;
 }
 
+export interface Quote {
+  _id: string;
+  jobPost: string | JobPost;
+  worker: {
+    _id: string;
+    user: { _id: string; name: string; avatar: string; phone?: string };
+    bio: string;
+    rating: number;
+    reviewCount: number;
+    city: string;
+    yearsExperience: number;
+    categories: string[];
+  };
+  proposedPrice: number;
+  message: string;
+  estimatedArrivalDate?: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: string;
+}
+
 export interface JobPost {
   _id: string;
   resident: { _id: string; name: string; avatar: string; phone?: string };

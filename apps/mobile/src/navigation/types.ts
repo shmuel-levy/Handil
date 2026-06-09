@@ -18,6 +18,8 @@ export type PostsStackParamList = {
   PostsFeed: undefined;
   CreatePost: undefined;
   PostDetail: { postId: string };
+  QuoteSubmit: { postId: string; postTitle: string };
+  QuotesList:  { postId: string; postTitle: string };
 };
 
 export type HomeStackParamList = {

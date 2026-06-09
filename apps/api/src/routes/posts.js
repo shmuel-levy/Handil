@@ -64,14 +64,18 @@ router.get('/mine', auth, async (req, res) => {
   }
 });
 
-// Single post
+// Single post — also returns quoteCount so clients can show "X הצעות" without extra call
 router.get('/:id', auth, async (req, res) => {
   try {
-    const post = await JobPost.findById(req.params.id)
-      .populate('resident', 'name avatar phone')
-      .populate('acceptedBy', 'name avatar');
+    const Quote = require('../models/Quote');
+    const [post, quoteCount] = await Promise.all([
+      JobPost.findById(req.params.id)
+        .populate('resident', 'name avatar phone')
+        .populate('acceptedBy', 'name avatar'),
+      Quote.countDocuments({ jobPost: req.params.id, status: { $in: ['pending', 'accepted'] } }),
+    ]);
     if (!post) return res.status(404).json({ message: 'פוסט לא נמצא' });
-    res.json({ post });
+    res.json({ post, quoteCount });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });
   }
