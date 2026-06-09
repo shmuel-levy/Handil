@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Linking,
   Modal,
   ScrollView,
@@ -53,8 +54,25 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const [topWorkers, setTopWorkers] = useState<WorkerProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const panelAnim = useRef(new Animated.Value(300)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
   const { isDesktop } = useBreakpoint();
+
+  const openMenu = () => {
+    setMenuVisible(true);
+    Animated.parallel([
+      Animated.spring(panelAnim, { toValue: 0, useNativeDriver: true, bounciness: 0, speed: 14 }),
+      Animated.timing(backdropAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const closeMenu = () => {
+    Animated.parallel([
+      Animated.timing(panelAnim, { toValue: 300, duration: 220, useNativeDriver: true }),
+      Animated.timing(backdropAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start(() => setMenuVisible(false));
+  };
 
   useEffect(() => {
     getWorkers({ page: 1 })
@@ -91,7 +109,7 @@ export default function HomeScreen() {
                 <Ionicons name="search" size={16} color={colors.textMuted} />
                 <Text style={styles.searchPlaceholder}>חפשו: חשמלאי, אינסטלטור…</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.desktopMenuBtn} onPress={() => setMenuOpen(true)} activeOpacity={0.75}>
+              <TouchableOpacity style={styles.desktopMenuBtn} onPress={openMenu} activeOpacity={0.75}>
                 <Ionicons name="menu" size={22} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
@@ -104,7 +122,7 @@ export default function HomeScreen() {
                 <Text style={styles.heroGreeting}>שלום, {firstName} 👋</Text>
                 <Text style={styles.heroTagline}>מה צריך לתקן היום?</Text>
               </View>
-              <TouchableOpacity style={styles.heroBrand} onPress={() => setMenuOpen(true)} activeOpacity={0.75}>
+              <TouchableOpacity style={styles.heroBrand} onPress={openMenu} activeOpacity={0.75}>
                 <Ionicons name="menu" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -269,22 +287,23 @@ export default function HomeScreen() {
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      {/* ── Hamburger side menu ── */}
+      {/* ── Hamburger side menu (animated slide-in from right) ── */}
       <Modal
-        visible={menuOpen}
+        visible={menuVisible}
         transparent
-        animationType="fade"
-        onRequestClose={() => setMenuOpen(false)}
+        animationType="none"
+        onRequestClose={closeMenu}
       >
-        <View style={styles.menuOverlay}>
-          {/* backdrop */}
-          <TouchableOpacity style={styles.menuBackdrop} onPress={() => setMenuOpen(false)} activeOpacity={1} />
+        <View style={{ flex: 1 }}>
+          {/* Animated backdrop */}
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', opacity: backdropAnim }]}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={closeMenu} activeOpacity={1} />
+          </Animated.View>
 
-          {/* panel slides in from right */}
-          <View style={styles.menuPanel}>
-            {/* Header */}
+          {/* Animated panel — pinned to right edge, slides in on translateX */}
+          <Animated.View style={[styles.menuPanel, { transform: [{ translateX: panelAnim }] }]}>
             <View style={styles.menuHeader}>
-              <TouchableOpacity onPress={() => setMenuOpen(false)} style={styles.menuClose}>
+              <TouchableOpacity onPress={closeMenu} style={styles.menuClose}>
                 <Ionicons name="close" size={22} color={colors.textPrimary} />
               </TouchableOpacity>
               <View style={styles.menuBrand}>
@@ -297,12 +316,11 @@ export default function HomeScreen() {
 
             <View style={styles.menuDivider} />
 
-            {/* Items */}
             {MENU_ITEMS.map((item, idx) => (
               <TouchableOpacity
                 key={item.id}
                 style={[styles.menuItem, idx === MENU_ITEMS.length - 1 && { borderBottomWidth: 0 }]}
-                onPress={() => { setMenuOpen(false); setTimeout(() => handleMenuAction(item.id), 200); }}
+                onPress={() => { closeMenu(); setTimeout(() => handleMenuAction(item.id), 250); }}
                 activeOpacity={0.7}
               >
                 <View style={styles.menuItemIconWrap}>
@@ -320,7 +338,7 @@ export default function HomeScreen() {
               <Text style={styles.menuVersion}>Handil v1.0.0</Text>
               <Text style={styles.menuTagline}>מחברים אנשים לבעלי מקצוע</Text>
             </View>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -499,12 +517,13 @@ const styles = StyleSheet.create({
   },
 
   // Hamburger modal
-  menuOverlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.4)' },
-  menuBackdrop: { flex: 1 },
   menuPanel: {
-    width: 290,
+    position: 'absolute', top: 0, bottom: 0, right: 0, width: 290,
     backgroundColor: colors.surface,
     paddingBottom: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.12, shadowRadius: 16, elevation: 12,
   },
   menuHeader: {
     flexDirection: 'row',

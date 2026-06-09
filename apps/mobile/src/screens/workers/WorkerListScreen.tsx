@@ -119,6 +119,7 @@ export default function WorkerListScreen() {
         <ActivityIndicator style={styles.loader} color={colors.primary} size="large" />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={workers}
           keyExtractor={(w) => w._id}
           contentContainerStyle={styles.list}
@@ -171,7 +172,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary, padding: 0 },
-  chipScroll: { flexGrow: 0, marginBottom: 4 },
+  chipScroll: { height: 52, marginBottom: 4 },
   chipRow: { paddingHorizontal: 16, paddingBottom: 10, gap: 7, alignItems: 'center' },
   chip: {
     flexDirection: 'row',
