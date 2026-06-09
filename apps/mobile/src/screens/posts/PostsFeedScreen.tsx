@@ -54,10 +54,22 @@ function PostCard({
 }) {
   const cat = getCategoryBySlug(post.category);
   const urgencyColor = URGENCY_COLOR[post.urgency] ?? colors.textMuted;
+  const isClosed = post.status === 'closed';
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
-      <View style={styles.cardTop}>
+    <TouchableOpacity
+      style={[styles.card, isClosed && styles.cardClosed]}
+      onPress={isClosed ? undefined : onPress}
+      activeOpacity={isClosed ? 1 : 0.85}
+    >
+      {isClosed && (
+        <View style={styles.closedBanner}>
+          <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+          <Text style={styles.closedBannerText}>פוסט זה נסגר</Text>
+        </View>
+      )}
+
+      <View style={[styles.cardTop, isClosed && { opacity: 0.5 }]}>
         <View style={styles.catBadge}>
           <Ionicons name={(cat?.icon ?? 'briefcase-outline') as any} size={13} color={colors.primary} />
           <Text style={styles.catBadgeText}>{cat?.name_he ?? post.category}</Text>
@@ -69,14 +81,14 @@ function PostCard({
         </View>
       </View>
 
-      <Text style={styles.postTitle}>{post.title}</Text>
+      <Text style={[styles.postTitle, isClosed && { opacity: 0.45 }]}>{post.title}</Text>
       {post.description ? (
-        <Text style={styles.postDesc} numberOfLines={2}>
+        <Text style={[styles.postDesc, isClosed && { opacity: 0.45 }]} numberOfLines={2}>
           {post.description}
         </Text>
       ) : null}
 
-      <View style={styles.cardBottom}>
+      <View style={[styles.cardBottom, isClosed && { opacity: 0.45 }]}>
         <View style={styles.residentRow}>
           <View style={styles.residentAvatar}>
             <Text style={styles.residentAvatarText}>
@@ -362,4 +374,14 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+  cardClosed: {
+    backgroundColor: colors.borderLight,
+    borderColor: colors.border,
+  },
+  closedBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.border, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6, marginBottom: 10,
+  },
+  closedBannerText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
 });
