@@ -4,6 +4,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,11 +25,35 @@ import { WorkerProfile } from '../../types';
 
 type Nav = NativeStackNavigationProp<HomeStackParamList>;
 
+const MENU_ITEMS = [
+  { id: 'about',   icon: 'information-circle-outline', title: 'קצת על Handil',    sub: 'הפלטפורמה שמחברת בין דיירים לבעלי מקצוע' },
+  { id: 'support', icon: 'headset-outline',            title: 'תמיכה טכנית',      sub: 'זמינים ראשון–חמישי, 09:00–17:00' },
+  { id: 'faq',     icon: 'help-circle-outline',        title: 'שאלות נפוצות',     sub: 'תשובות לשאלות הכי נפוצות' },
+  { id: 'contact', icon: 'mail-outline',               title: 'צור קשר',          sub: 'support@handil.co.il' },
+  { id: 'terms',   icon: 'document-text-outline',      title: 'תנאי שימוש',       sub: 'הסכם שימוש ומדיניות האתר' },
+  { id: 'privacy', icon: 'shield-checkmark-outline',   title: 'מדיניות פרטיות',   sub: 'איך אנחנו מגנים על המידע שלך' },
+];
+
+function handleMenuAction(id: string) {
+  if (id === 'about') {
+    Alert.alert('קצת על Handil 🔨', 'Handil מחברת בין דיירים לבעלי מקצוע מנוסים באזורם.\nדירוגים אמיתיים, מחירים שקופים, עבודה מהירה.');
+  } else if (id === 'support') {
+    Alert.alert('תמיכה טכנית', 'אנחנו זמינים ראשון–חמישי 09:00–17:00.\nשלח מייל ל-support@handil.co.il');
+  } else if (id === 'contact') {
+    Linking.openURL('mailto:support@handil.co.il');
+  } else if (id === 'faq') {
+    Alert.alert('שאלות נפוצות', 'Q: כמה עולה השירות?\nA: בעלי מקצוע קובעים את התעריף שלהם.\n\nQ: איך מבטלים הזמנה?\nA: ניתן לבטל מתוך מסך ההזמנות.');
+  } else {
+    Alert.alert('בקרוב', 'תוכן זה יהיה זמין בקרוב.');
+  }
+}
+
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const user = useAuthStore((s) => s.user);
   const [topWorkers, setTopWorkers] = useState<WorkerProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { isDesktop } = useBreakpoint();
 
   useEffect(() => {
@@ -54,14 +81,19 @@ export default function HomeScreen() {
                 <Text style={styles.location}>תל אביב</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.desktopSearchBar}
-              onPress={() => navigation.navigate('WorkerList', { category: '', categoryName: 'כל בעלי המקצוע' })}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="search" size={16} color={colors.textMuted} />
-              <Text style={styles.searchPlaceholder}>חפשו: חשמלאי, אינסטלטור…</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <TouchableOpacity
+                style={styles.desktopSearchBar}
+                onPress={() => navigation.navigate('WorkerList', { category: '', categoryName: 'כל בעלי המקצוע' })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="search" size={16} color={colors.textMuted} />
+                <Text style={styles.searchPlaceholder}>חפשו: חשמלאי, אינסטלטור…</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.desktopMenuBtn} onPress={() => setMenuOpen(true)} activeOpacity={0.75}>
+                <Ionicons name="menu" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           /* ── Mobile hero — orange immersive ── */
@@ -71,9 +103,9 @@ export default function HomeScreen() {
                 <Text style={styles.heroGreeting}>שלום, {firstName} 👋</Text>
                 <Text style={styles.heroTagline}>מה צריך לתקן היום?</Text>
               </View>
-              <View style={styles.heroBrand}>
-                <Text style={styles.heroBrandText}>H</Text>
-              </View>
+              <TouchableOpacity style={styles.heroBrand} onPress={() => setMenuOpen(true)} activeOpacity={0.75}>
+                <Ionicons name="menu" size={24} color="#fff" />
+              </TouchableOpacity>
             </View>
             <View style={styles.heroLocationRow}>
               <Ionicons name="location" size={12} color="rgba(255,255,255,0.8)" />
@@ -235,6 +267,61 @@ export default function HomeScreen() {
 
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      {/* ── Hamburger side menu ── */}
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <View style={styles.menuOverlay}>
+          {/* backdrop */}
+          <TouchableOpacity style={styles.menuBackdrop} onPress={() => setMenuOpen(false)} activeOpacity={1} />
+
+          {/* panel slides in from right */}
+          <View style={styles.menuPanel}>
+            {/* Header */}
+            <View style={styles.menuHeader}>
+              <TouchableOpacity onPress={() => setMenuOpen(false)} style={styles.menuClose}>
+                <Ionicons name="close" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <View style={styles.menuBrand}>
+                <View style={styles.menuBrandIcon}>
+                  <Ionicons name="hammer" size={18} color={colors.white} />
+                </View>
+                <Text style={styles.menuBrandText}>Handil</Text>
+              </View>
+            </View>
+
+            <View style={styles.menuDivider} />
+
+            {/* Items */}
+            {MENU_ITEMS.map((item, idx) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.menuItem, idx === MENU_ITEMS.length - 1 && { borderBottomWidth: 0 }]}
+                onPress={() => { setMenuOpen(false); setTimeout(() => handleMenuAction(item.id), 200); }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.menuItemIconWrap}>
+                  <Ionicons name={item.icon as any} size={20} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.menuItemTitle}>{item.title}</Text>
+                  <Text style={styles.menuItemSub} numberOfLines={1}>{item.sub}</Text>
+                </View>
+                <Ionicons name="chevron-back" size={15} color={colors.textDisabled} />
+              </TouchableOpacity>
+            ))}
+
+            <View style={styles.menuFooter}>
+              <Text style={styles.menuVersion}>Handil v1.0.0</Text>
+              <Text style={styles.menuTagline}>מחברים אנשים לבעלי מקצוע</Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -400,4 +487,50 @@ const styles = StyleSheet.create({
   workerGridCard: { flex: 1, minWidth: 280 },
   emptyBox: { alignItems: 'center', paddingVertical: 32 },
   emptyText: { marginTop: 12, fontSize: 14, color: colors.textMuted },
+
+  // Desktop menu button
+  desktopMenuBtn: {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Hamburger modal
+  menuOverlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.4)' },
+  menuBackdrop: { flex: 1 },
+  menuPanel: {
+    width: 290,
+    backgroundColor: colors.surface,
+    paddingBottom: 40,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 16,
+  },
+  menuClose: { padding: 4 },
+  menuBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  menuBrandIcon: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  menuBrandText: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
+  menuDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: 20, marginBottom: 8 },
+  menuItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+  },
+  menuItemIconWrap: {
+    width: 38, height: 38, borderRadius: 11,
+    backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center',
+  },
+  menuItemTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, textAlign: 'right', marginBottom: 2 },
+  menuItemSub: { fontSize: 11, color: colors.textMuted, textAlign: 'right' },
+  menuFooter: { paddingHorizontal: 20, paddingTop: 24, alignItems: 'flex-end' },
+  menuVersion: { fontSize: 12, fontWeight: '600', color: colors.textDisabled },
+  menuTagline: { fontSize: 11, color: colors.textDisabled, marginTop: 2 },
 });

@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -82,23 +83,36 @@ export default function WorkerListScreen() {
       </View>
 
       {/* Category filter chips */}
-      <FlatList
+      <ScrollView
         horizontal
-        data={[{ slug: '', name_he: 'הכל', name_en: 'All', icon: 'apps-outline' }, ...CATEGORIES]}
-        keyExtractor={(i) => i.slug}
-        contentContainerStyle={styles.chipRow}
         showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.chip, selectedCategory === item.slug && styles.chipActive]}
-            onPress={() => setSelectedCategory(item.slug)}
-          >
-            <Text style={[styles.chipText, selectedCategory === item.slug && styles.chipTextActive]}>
-              {item.name_he}
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
+        contentContainerStyle={styles.chipRow}
+        style={styles.chipScroll}
+      >
+        {[{ slug: '', name_he: 'הכל', icon: 'apps-outline' }, ...CATEGORIES].map((item) => {
+          const active = selectedCategory === item.slug;
+          return (
+            <TouchableOpacity
+              key={item.slug}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => setSelectedCategory(item.slug)}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={item.icon as any}
+                size={13}
+                color={active ? '#fff' : colors.primary}
+              />
+              <Text
+                style={[styles.chipText, active && styles.chipTextActive]}
+                numberOfLines={1}
+              >
+                {item.name_he}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       {/* Results */}
       {loading ? (
@@ -157,17 +171,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary, padding: 0 },
-  chipRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 8 },
+  chipScroll: { flexGrow: 0, marginBottom: 4 },
+  chipRow: { paddingHorizontal: 16, paddingBottom: 10, gap: 7, alignItems: 'center' },
   chip: {
-    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 20,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  chipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
   chipTextActive: { color: colors.white },
   loader: { marginTop: 40 },
   list: { paddingHorizontal: 16, paddingBottom: 20 },

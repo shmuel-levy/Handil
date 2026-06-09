@@ -94,6 +94,21 @@ router.post('/:id/accept', auth, async (req, res) => {
       { path: 'resident', select: 'name avatar phone' },
       { path: 'acceptedBy', select: 'name avatar' },
     ]);
+
+    // Auto-create a booking so it appears in the worker's Bookings tab
+    const Booking = require('../models/Booking');
+    const existing = await Booking.findOne({ jobPost: post._id });
+    if (!existing) {
+      await Booking.create({
+        resident: post.resident._id,
+        worker: req.user.id,
+        category: post.category,
+        description: post.title,
+        status: 'accepted',
+        price: post.budget ?? null,
+      });
+    }
+
     res.json({ post });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });

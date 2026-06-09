@@ -66,9 +66,17 @@ export default function PostDetailScreen() {
             try {
               const { post: updated } = await acceptPost(post._id);
               setPost(updated);
-              Alert.alert('', 'קיבלת את העבודה בהצלחה! ניתן ליצור קשר עם הלקוח.', [
-                { text: 'אישור' },
-              ]);
+              Alert.alert(
+                '✅ קיבלת את העבודה!',
+                'נוספה להזמנות שלך. ניתן ליצור קשר עם הלקוח מהזמנות.',
+                [
+                  {
+                    text: 'לצפייה בהזמנות',
+                    onPress: () => navigation.getParent<any>()?.navigate('BookingsTab'),
+                  },
+                  { text: 'הישאר כאן', style: 'cancel' },
+                ]
+              );
             } catch (e: any) {
               Alert.alert('שגיאה', e?.response?.data?.message ?? 'לא ניתן לקבל את העבודה');
             } finally {
