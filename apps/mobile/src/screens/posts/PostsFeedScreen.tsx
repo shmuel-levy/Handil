@@ -79,9 +79,13 @@ function PostCard({
       <View style={styles.cardBottom}>
         <View style={styles.residentRow}>
           <View style={styles.residentAvatar}>
-            <Text style={styles.residentAvatarText}>{post.resident.name.charAt(0)}</Text>
+            <Text style={styles.residentAvatarText}>
+              {typeof post.resident === 'object' ? post.resident.name?.charAt(0) ?? '?' : '?'}
+            </Text>
           </View>
-          <Text style={styles.residentName}>{post.resident.name}</Text>
+          <Text style={styles.residentName}>
+            {typeof post.resident === 'object' ? post.resident.name : ''}
+          </Text>
           <Text style={styles.locationText}>
             <Ionicons name="location-outline" size={11} color={colors.textMuted} />
             {' '}{post.location}

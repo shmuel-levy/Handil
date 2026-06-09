@@ -55,6 +55,7 @@ router.get('/', auth, async (req, res) => {
 router.get('/mine', auth, async (req, res) => {
   try {
     const posts = await JobPost.find({ resident: req.user.id })
+      .populate('resident', 'name avatar')
       .populate('acceptedBy', 'name avatar phone')
       .sort({ createdAt: -1 });
     res.json({ posts });
