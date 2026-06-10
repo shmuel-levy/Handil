@@ -85,7 +85,7 @@ export default function CreatePostScreen() {
         images,
         location: 'תל אביב',
       });
-      // Navigate immediately — no Alert callback (unreliable on web)
+      setSubmitting(false);
       navigation.navigate('PostsFeed');
     } catch (e: any) {
       const msg = e?.response?.data?.message ?? e?.message ?? 'שגיאת חיבור לשרת';

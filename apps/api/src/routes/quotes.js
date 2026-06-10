@@ -153,18 +153,14 @@ router.patch('/:id/accept', auth, async (req, res) => {
     ]);
 
     // Create Booking
-    const existing = await Booking.findOne({ jobPost: post._id });
-    if (!existing) {
-      await Booking.create({
-        resident:    residentId,
-        worker:      quote.worker._id,
-        category:    post.category,
-        description: post.title,
-        status:      'accepted',
-        price:       quote.proposedPrice,
-        jobPost:     post._id,
-      });
-    }
+    await Booking.create({
+      resident:    residentId,
+      worker:      quote.worker.user._id,
+      category:    post.category,
+      description: post.title,
+      status:      'accepted',
+      price:       quote.proposedPrice,
+    });
 
     res.json({ quote, post });
   } catch (err) {

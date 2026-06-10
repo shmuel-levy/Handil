@@ -7,6 +7,7 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   setAuth: (token: string, user: User) => void;
+  updateUser: (patch: Partial<User>) => void;
   logout: () => Promise<void>;
   loadAuth: () => Promise<void>;
 }
@@ -20,6 +21,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     AsyncStorage.setItem('handil_token', token);
     AsyncStorage.setItem('handil_user', JSON.stringify(user));
     set({ token, user });
+  },
+
+  updateUser: (patch) => {
+    set((state) => {
+      if (!state.user) return state;
+      const updated = { ...state.user, ...patch };
+      AsyncStorage.setItem('handil_user', JSON.stringify(updated));
+      return { user: updated };
+    });
   },
 
   logout: async () => {

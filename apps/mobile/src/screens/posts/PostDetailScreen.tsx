@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -56,12 +56,14 @@ export default function PostDetailScreen() {
       .finally(() => setLoading(false));
   }, [params.postId]);
 
-  useEffect(() => {
-    if (!isWorker) { setMyQuote(null); return; }
-    checkMyQuote(params.postId)
-      .then(({ quote }) => setMyQuote(quote))
-      .catch(() => setMyQuote(null));
-  }, [params.postId, isWorker]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isWorker) { setMyQuote(null); return; }
+      checkMyQuote(params.postId)
+        .then(({ quote }) => setMyQuote(quote))
+        .catch(() => setMyQuote(null));
+    }, [params.postId, isWorker])
+  );
   const isOwner = post?.resident?._id === user?.id;
   const cat = post ? getCategoryBySlug(post.category) : null;
 
@@ -221,50 +223,51 @@ export default function PostDetailScreen() {
         </View>
       )}
 
-      {/* Resident: view quotes button */}
-      {isOwner && post.status !== 'closed' && (
+      {/* Owner footer — quotes + close in one container */}
+      {isOwner && (
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.quotesViewBtn}
-            onPress={() => navigation.navigate('QuotesList', { postId: post._id, postTitle: post.title })}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="people-outline" size={18} color={colors.primary} />
-            <Text style={styles.quotesViewBtnText}>
-              {quoteCount > 0 ? `${quoteCount} הצעות מחיר — בחר בעל מקצוע` : 'הצעות מחיר (0)'}
-            </Text>
-            <Ionicons name="chevron-back" size={15} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {isOwner && post.status === 'open' && (
-        <View style={styles.footer}>
-          {confirmClose ? (
-            <View style={styles.confirmRow}>
-              <TouchableOpacity
-                style={[styles.confirmYes, closing && { opacity: 0.6 }]}
-                onPress={handleClose}
-                disabled={closing}
-              >
-                {closing ? (
-                  <ActivityIndicator size="small" color={colors.white} />
-                ) : (
-                  <Text style={styles.confirmYesText}>כן, סגור פוסט</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmNo}
-                onPress={() => setConfirmClose(false)}
-              >
-                <Text style={styles.confirmNoText}>ביטול</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setConfirmClose(true)}>
-              <Ionicons name="close-circle-outline" size={18} color={colors.error} />
-              <Text style={styles.closeBtnText}>סגור פוסט</Text>
+          {post.status !== 'closed' && (
+            <TouchableOpacity
+              style={styles.quotesViewBtn}
+              onPress={() => navigation.navigate('QuotesList', { postId: post._id, postTitle: post.title })}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="people-outline" size={18} color={colors.primary} />
+              <Text style={styles.quotesViewBtnText}>
+                {quoteCount > 0 ? `${quoteCount} הצעות מחיר — בחר בעל מקצוע` : 'הצעות מחיר (0)'}
+              </Text>
+              <Ionicons name="chevron-back" size={15} color={colors.primary} />
             </TouchableOpacity>
+          )}
+          {post.status === 'open' && (
+            <View style={{ marginTop: 10 }}>
+              {confirmClose ? (
+                <View style={styles.confirmRow}>
+                  <TouchableOpacity
+                    style={[styles.confirmYes, closing && { opacity: 0.6 }]}
+                    onPress={handleClose}
+                    disabled={closing}
+                  >
+                    {closing ? (
+                      <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                      <Text style={styles.confirmYesText}>כן, סגור פוסט</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.confirmNo}
+                    onPress={() => setConfirmClose(false)}
+                  >
+                    <Text style={styles.confirmNoText}>ביטול</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.closeBtn} onPress={() => setConfirmClose(true)}>
+                  <Ionicons name="close-circle-outline" size={18} color={colors.error} />
+                  <Text style={styles.closeBtnText}>סגור פוסט</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           )}
         </View>
       )}
@@ -275,7 +278,7 @@ export default function PostDetailScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  content: { padding: 20, paddingBottom: 100 },
+  content: { padding: 20, paddingBottom: 180 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
   catBadge: {
     flexDirection: 'row',

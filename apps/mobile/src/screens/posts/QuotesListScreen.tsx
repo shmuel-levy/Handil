@@ -5,10 +5,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -16,7 +19,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryBySlug } from '../../constants/categories';
 import { colors } from '../../constants/colors';
 import { PostsStackParamList } from '../../navigation/types';
+import { updateMyProfile } from '../../services/authApi';
 import { acceptQuote, getJobQuotes, rejectQuote } from '../../services/quotesApi';
+import { useAuthStore } from '../../store/authStore';
 import { Quote } from '../../types';
 import { logger } from '../../utils/logger';
 
@@ -35,11 +40,20 @@ export default function QuotesListScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
 
+  const user = useAuthStore((s) => s.user);
+  const updateUser = useAuthStore((s) => s.updateUser);
+
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>('price');
   const [actionId, setActionId] = useState<string | null>(null);
+  const [confirmAcceptId, setConfirmAcceptId] = useState<string | null>(null);
+  // Phone step
+  const [phoneStepQuote, setPhoneStepQuote] = useState<Quote | null>(null);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -63,28 +77,53 @@ export default function QuotesListScreen() {
   });
 
   const handleAccept = (quote: Quote) => {
-    Alert.alert(
-      'בחירת בעל מקצוע',
-      `לבחור את ${quote.worker.user.name} במחיר ₪${quote.proposedPrice.toLocaleString('he-IL')}?\n\nשאר ההצעות יידחו אוטומטית.`,
-      [
-        { text: 'ביטול', style: 'cancel' },
-        {
-          text: 'כן, בחר',
-          onPress: async () => {
-            setActionId(quote._id);
-            try {
-              await acceptQuote(quote._id);
-              await load();
-              navigation.goBack();
-            } catch (e: any) {
-              Alert.alert('שגיאה', e?.response?.data?.message ?? 'לא ניתן לאשר');
-            } finally {
-              setActionId(null);
-            }
-          },
-        },
-      ]
-    );
+    setConfirmAcceptId(quote._id);
+  };
+
+  const doAccept = async (quote: Quote) => {
+    setConfirmAcceptId(null);
+    // If user has no phone, require it first
+    if (!user?.phone?.trim()) {
+      setPhoneInput('');
+      setPhoneError('');
+      setPhoneStepQuote(quote);
+      return;
+    }
+    await _executeAccept(quote);
+  };
+
+  const _executeAccept = async (quote: Quote) => {
+    setActionId(quote._id);
+    try {
+      await acceptQuote(quote._id);
+      await load();
+      navigation.goBack();
+    } catch (e: any) {
+      logger.error('QuotesList', 'accept failed', e?.message);
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handlePhoneSubmit = async () => {
+    if (!phoneStepQuote) return;
+    const cleaned = phoneInput.trim();
+    if (!cleaned || cleaned.length < 9) {
+      setPhoneError('אנא הזן מספר טלפון תקין (לפחות 9 ספרות)');
+      return;
+    }
+    setSavingPhone(true);
+    try {
+      await updateMyProfile({ phone: cleaned });
+      updateUser({ phone: cleaned });
+      const q = phoneStepQuote;
+      setPhoneStepQuote(null);
+      await _executeAccept(q);
+    } catch {
+      setPhoneError('לא ניתן לשמור את מספר הטלפון, נסה שוב');
+    } finally {
+      setSavingPhone(false);
+    }
   };
 
   const handleReject = async (quote: Quote) => {
@@ -105,6 +144,80 @@ export default function QuotesListScreen() {
   const orderedQuotes = [...accepted, ...pending, ...rejected];
 
   const hasAccepted = quotes.some((q) => q.status === 'accepted');
+
+  if (phoneStepQuote) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView contentContainerStyle={styles.phoneStepContent} keyboardShouldPersistTaps="handled">
+            <View style={styles.phoneStepCard}>
+              <View style={styles.phoneStepIcon}>
+                <Ionicons name="call" size={32} color={colors.primary} />
+              </View>
+              <Text style={styles.phoneStepTitle}>פרטי יצירת קשר</Text>
+              <Text style={styles.phoneStepSub}>
+                כדי שבעל המקצוע יוכל ליצור איתך קשר ולקבוע מועד לביצוע העבודה, אנא הזן מספר טלפון לחזרה.
+              </Text>
+
+              <View style={styles.phoneStepWorkerBanner}>
+                <View style={styles.phoneStepWorkerAvatar}>
+                  <Text style={styles.phoneStepWorkerAvatarText}>
+                    {phoneStepQuote.worker.user.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.phoneStepWorkerName}>{phoneStepQuote.worker.user.name}</Text>
+                  <Text style={styles.phoneStepWorkerPrice}>
+                    ₪{phoneStepQuote.proposedPrice.toLocaleString('he-IL')}
+                  </Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={22} color={colors.success} />
+              </View>
+
+              <Text style={styles.phoneStepLabel}>מספר טלפון *</Text>
+              <TextInput
+                style={[styles.phoneStepInput, phoneError ? styles.phoneStepInputError : null]}
+                value={phoneInput}
+                onChangeText={(t) => { setPhoneInput(t.replace(/[^0-9\-+]/g, '')); setPhoneError(''); }}
+                placeholder="05X-XXXXXXX"
+                placeholderTextColor={colors.textDisabled}
+                keyboardType="phone-pad"
+                textAlign="right"
+                autoFocus
+              />
+              {phoneError ? (
+                <View style={styles.phoneErrBox}>
+                  <Ionicons name="alert-circle" size={14} color={colors.error} />
+                  <Text style={styles.phoneErrText}>{phoneError}</Text>
+                </View>
+              ) : null}
+              <Text style={styles.phoneStepHint}>המספר יוצג לבעל המקצוע בלבד לאחר האישור</Text>
+
+              <TouchableOpacity
+                style={[styles.phoneStepBtn, savingPhone && { opacity: 0.7 }]}
+                onPress={handlePhoneSubmit}
+                disabled={savingPhone}
+                activeOpacity={0.85}
+              >
+                {savingPhone ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle-outline" size={18} color={colors.white} />
+                    <Text style={styles.phoneStepBtnText}>אשר הזמנה ושלח טלפון</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.phoneStepCancel} onPress={() => setPhoneStepQuote(null)}>
+                <Text style={styles.phoneStepCancelText}>ביטול</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -259,29 +372,55 @@ export default function QuotesListScreen() {
 
                   {/* Actions */}
                   {quote.status === 'pending' && !hasAccepted && (
-                    <View style={styles.actionsRow}>
-                      <TouchableOpacity
-                        style={[styles.rejectBtn, isActionTarget && { opacity: 0.5 }]}
-                        onPress={() => handleReject(quote)}
-                        disabled={!!actionId}
-                      >
-                        <Text style={styles.rejectBtnText}>דחה</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.acceptBtn, isActionTarget && { opacity: 0.5 }]}
-                        onPress={() => handleAccept(quote)}
-                        disabled={!!actionId}
-                      >
-                        {isActionTarget ? (
-                          <ActivityIndicator size="small" color={colors.white} />
-                        ) : (
-                          <>
-                            <Ionicons name="checkmark-circle-outline" size={16} color={colors.white} />
-                            <Text style={styles.acceptBtnText}>בחר בעל מקצוע</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    </View>
+                    confirmAcceptId === quote._id ? (
+                      <View style={styles.confirmRow}>
+                        <View style={styles.confirmPrompt}>
+                          <Text style={styles.confirmText}>
+                            לבחור את {quote.worker.user.name} ב-₪{quote.proposedPrice.toLocaleString('he-IL')}?
+                          </Text>
+                          <Text style={styles.confirmSub}>שאר ההצעות יידחו אוטומטית</Text>
+                        </View>
+                        <View style={styles.confirmBtns}>
+                          <TouchableOpacity
+                            style={styles.confirmYes}
+                            onPress={() => doAccept(quote)}
+                          >
+                            <Ionicons name="checkmark-circle-outline" size={15} color={colors.white} />
+                            <Text style={styles.confirmYesText}>כן, בחר</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.confirmNo}
+                            onPress={() => setConfirmAcceptId(null)}
+                          >
+                            <Text style={styles.confirmNoText}>ביטול</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.actionsRow}>
+                        <TouchableOpacity
+                          style={[styles.rejectBtn, isActionTarget && { opacity: 0.5 }]}
+                          onPress={() => handleReject(quote)}
+                          disabled={!!actionId}
+                        >
+                          <Text style={styles.rejectBtnText}>דחה</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.acceptBtn, isActionTarget && { opacity: 0.5 }]}
+                          onPress={() => handleAccept(quote)}
+                          disabled={!!actionId}
+                        >
+                          {isActionTarget ? (
+                            <ActivityIndicator size="small" color={colors.white} />
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark-circle-outline" size={16} color={colors.white} />
+                              <Text style={styles.acceptBtnText}>בחר בעל מקצוע</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    )
                   )}
 
                   {quote.status === 'accepted' && (
@@ -371,6 +510,15 @@ const styles = StyleSheet.create({
   },
   messageText: { fontSize: 13, color: colors.textSecondary, textAlign: 'right', lineHeight: 20 },
 
+  confirmRow: { marginTop: 8, gap: 8 },
+  confirmPrompt: { backgroundColor: colors.warningLight, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: colors.warning + '40' },
+  confirmText: { fontSize: 13, fontWeight: '700', color: colors.textPrimary, textAlign: 'right' },
+  confirmSub: { fontSize: 11, color: colors.textMuted, textAlign: 'right', marginTop: 2 },
+  confirmBtns: { flexDirection: 'row', gap: 8 },
+  confirmYes: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.success, paddingVertical: 11, borderRadius: 10 },
+  confirmYesText: { color: colors.white, fontSize: 13, fontWeight: '700' },
+  confirmNo: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 11, borderRadius: 10, borderWidth: 1.5, borderColor: colors.border },
+  confirmNoText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   rejectBtn: {
     flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12,
@@ -392,4 +540,51 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.textSecondary },
   emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
+
+  // Phone step
+  phoneStepContent: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  phoneStepCard: {
+    backgroundColor: colors.surface, borderRadius: 24, padding: 24,
+    borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06, shadowRadius: 16, elevation: 4,
+  },
+  phoneStepIcon: {
+    width: 68, height: 68, borderRadius: 20,
+    backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center',
+    alignSelf: 'center', marginBottom: 20,
+  },
+  phoneStepTitle: { fontSize: 22, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginBottom: 10 },
+  phoneStepSub: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  phoneStepWorkerBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.successLight, borderRadius: 14, padding: 14, marginBottom: 24,
+    borderWidth: 1, borderColor: colors.success + '30',
+  },
+  phoneStepWorkerAvatar: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  phoneStepWorkerAvatarText: { fontSize: 18, fontWeight: '700', color: colors.white },
+  phoneStepWorkerName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, textAlign: 'right' },
+  phoneStepWorkerPrice: { fontSize: 13, color: colors.success, fontWeight: '600', textAlign: 'right', marginTop: 2 },
+  phoneStepLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, textAlign: 'right', marginBottom: 8 },
+  phoneStepInput: {
+    backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border,
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 17, color: colors.textPrimary, textAlign: 'right',
+  },
+  phoneStepInputError: { borderColor: colors.error },
+  phoneErrBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  phoneErrText: { fontSize: 12, color: colors.error, flex: 1, textAlign: 'right' },
+  phoneStepHint: { fontSize: 11, color: colors.textMuted, textAlign: 'right', marginTop: 6, marginBottom: 24 },
+  phoneStepBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.primary, paddingVertical: 16, borderRadius: 16,
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+  },
+  phoneStepBtnText: { color: colors.white, fontSize: 16, fontWeight: '800' },
+  phoneStepCancel: { alignItems: 'center', paddingTop: 16 },
+  phoneStepCancelText: { fontSize: 14, color: colors.textMuted, fontWeight: '600' },
 });

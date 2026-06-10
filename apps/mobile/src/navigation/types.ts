@@ -11,7 +11,18 @@ export type MainTabParamList = {
   SearchTab: { category?: string; categoryName?: string } | undefined;
   BookingsTab: undefined;
   PostsTab: undefined;
+  ChatTab: undefined;
   ProfileTab: undefined;
+};
+
+export type ChatStackParamList = {
+  Conversations: undefined;
+  Chat: {
+    conversationId: string;
+    otherUserId: string;
+    otherUserName: string;
+    jobPostTitle?: string;
+  };
 };
 
 export type PostsStackParamList = {

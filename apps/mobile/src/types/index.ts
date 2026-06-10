@@ -8,6 +8,23 @@ export interface User {
   city?: string;
 }
 
+export interface WorkerStats {
+  totalJobsDone: number;
+  completionRate: number | null;   // 0–100 percent
+  quoteAcceptRate: number | null;  // 0–100 percent
+  avgResponseHours: number | null;
+}
+
+export interface PortfolioItem {
+  _id: string;
+  title: string;
+  description?: string;
+  beforeImage?: string;
+  afterImage?: string;
+  category?: string;
+  createdAt: string;
+}
+
 export interface WorkerProfile {
   _id: string;
   user: {
@@ -33,6 +50,9 @@ export interface WorkerProfile {
   reviewCount: number;
   isAvailable: boolean;
   isVerified: boolean;
+  verificationBadges?: Array<'phone' | 'id' | 'bank'>;
+  portfolio?: PortfolioItem[];
+  gallery?: string[];
 }
 
 export interface Review {
@@ -67,11 +87,32 @@ export interface Quote {
     city: string;
     yearsExperience: number;
     categories: string[];
+    isVerified: boolean;
+    verificationBadges?: Array<'phone' | 'id' | 'bank'>;
   };
   proposedPrice: number;
   message: string;
   estimatedArrivalDate?: string;
   status: 'pending' | 'accepted' | 'rejected';
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  _id: string;
+  conversation: string;
+  sender: { _id: string; name: string; avatar: string; role: string };
+  text: string;
+  readBy: string[];
+  createdAt: string;
+}
+
+export interface Conversation {
+  _id: string;
+  participants: Array<{ _id: string; name: string; avatar: string; role: string }>;
+  jobPost: { _id: string; title: string; category: string } | null;
+  lastMessage: string;
+  lastMessageAt: string | null;
+  unreadCounts?: Record<string, number>;
   createdAt: string;
 }
 

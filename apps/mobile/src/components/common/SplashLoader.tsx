@@ -53,7 +53,7 @@ export default function SplashLoader() {
         <Ionicons name="hammer" size={54} color={colors.white} />
       </Animated.View>
 
-      <Text style={styles.brand}>Handil</Text>
+      <Text style={styles.brand}>הנדיל</Text>
       <Text style={styles.tagline}>מחברים בעלי מקצוע עם דיירים</Text>
 
       {/* Bouncing dots */}

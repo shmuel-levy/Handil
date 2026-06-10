@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary, padding: 0 },
   chipScroll: { height: 52, marginBottom: 4 },
-  chipRow: { paddingHorizontal: 16, paddingBottom: 10, gap: 7, alignItems: 'center' },
+  chipRow: { paddingHorizontal: 16, paddingBottom: 10, gap: 4, alignItems: 'center' },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

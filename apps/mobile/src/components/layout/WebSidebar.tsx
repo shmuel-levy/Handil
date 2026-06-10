@@ -8,11 +8,12 @@ import { useAuthStore } from '../../store/authStore';
 const SIDEBAR_WIDTH = 256;
 
 const ROUTE_META: Record<string, { icon: string; activeIcon: string; label: string }> = {
-  HomeTab:     { icon: 'home-outline',      activeIcon: 'home',      label: 'בית' },
-  SearchTab:   { icon: 'search-outline',    activeIcon: 'search',    label: 'חיפוש' },
-  PostsTab:    { icon: 'newspaper-outline', activeIcon: 'newspaper', label: 'עבודות' },
-  BookingsTab: { icon: 'calendar-outline',  activeIcon: 'calendar',  label: 'הזמנות' },
-  ProfileTab:  { icon: 'person-outline',    activeIcon: 'person',    label: 'פרופיל' },
+  HomeTab:     { icon: 'home-outline',          activeIcon: 'home',           label: 'בית' },
+  SearchTab:   { icon: 'search-outline',        activeIcon: 'search',         label: 'חיפוש' },
+  PostsTab:    { icon: 'newspaper-outline',     activeIcon: 'newspaper',      label: 'עבודות' },
+  BookingsTab: { icon: 'calendar-outline',      activeIcon: 'calendar',       label: 'הזמנות' },
+  ChatTab:     { icon: 'chatbubbles-outline',   activeIcon: 'chatbubbles',    label: 'הודעות' },
+  ProfileTab:  { icon: 'person-outline',        activeIcon: 'person',         label: 'פרופיל' },
 };
 
 export { SIDEBAR_WIDTH };
@@ -30,7 +31,7 @@ export default function WebSidebar({ state, navigation }: BottomTabBarProps) {
           <Text style={styles.logoMarkText}>H</Text>
         </View>
         <View>
-          <Text style={styles.logoName}>Handil</Text>
+          <Text style={styles.logoName}>הנדיל</Text>
           <Text style={styles.logoSub}>שוק בעלי מקצוע</Text>
         </View>
       </View>

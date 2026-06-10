@@ -73,13 +73,15 @@ router.get('/me', authMiddleware, (req, res) => {
   res.json(sanitizeUser(req.user));
 });
 
-// PUT /api/auth/me  — save onboarding data (city, preferred categories)
+// PUT /api/auth/me  — update profile (city, preferred categories, phone, name)
 router.put('/me', authMiddleware, async (req, res) => {
   try {
-    const { city, preferredCategories } = req.body;
+    const { city, preferredCategories, phone, name } = req.body;
     const update = {};
     if (city !== undefined) update.city = city;
     if (preferredCategories !== undefined) update.preferredCategories = preferredCategories;
+    if (phone !== undefined) update.phone = phone;
+    if (name !== undefined) update.name = name;
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: update },

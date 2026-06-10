@@ -27,7 +27,7 @@ import { WorkerProfile } from '../../types';
 type Nav = NativeStackNavigationProp<HomeStackParamList>;
 
 const MENU_ITEMS = [
-  { id: 'about',   icon: 'information-circle-outline', title: 'קצת על Handil',    sub: 'הפלטפורמה שמחברת בין דיירים לבעלי מקצוע' },
+  { id: 'about',   icon: 'information-circle-outline', title: 'קצת על הנדיל',    sub: 'הפלטפורמה שמחברת בין דיירים לבעלי מקצוע' },
   { id: 'support', icon: 'headset-outline',            title: 'תמיכה טכנית',      sub: 'זמינים ראשון–חמישי, 09:00–17:00' },
   { id: 'faq',     icon: 'help-circle-outline',        title: 'שאלות נפוצות',     sub: 'תשובות לשאלות הכי נפוצות' },
   { id: 'contact', icon: 'mail-outline',               title: 'צור קשר',          sub: 'support@handil.co.il' },
@@ -37,7 +37,7 @@ const MENU_ITEMS = [
 
 function handleMenuAction(id: string) {
   if (id === 'about') {
-    Alert.alert('קצת על Handil 🔨', 'Handil מחברת בין דיירים לבעלי מקצוע מנוסים באזורם.\nדירוגים אמיתיים, מחירים שקופים, עבודה מהירה.');
+    Alert.alert('קצת על הנדיל 🔨', 'הנדיל מחברת בין דיירים לבעלי מקצוע מנוסים באזורם.\nדירוגים אמיתיים, מחירים שקופים, עבודה מהירה.');
   } else if (id === 'support') {
     Alert.alert('תמיכה טכנית', 'אנחנו זמינים ראשון–חמישי 09:00–17:00.\nשלח מייל ל-support@handil.co.il');
   } else if (id === 'contact') {
@@ -310,7 +310,7 @@ export default function HomeScreen() {
                 <View style={styles.menuBrandIcon}>
                   <Ionicons name="hammer" size={18} color={colors.white} />
                 </View>
-                <Text style={styles.menuBrandText}>Handil</Text>
+                <Text style={styles.menuBrandText}>הנדיל</Text>
               </View>
             </View>
 
@@ -335,7 +335,7 @@ export default function HomeScreen() {
             ))}
 
             <View style={styles.menuFooter}>
-              <Text style={styles.menuVersion}>Handil v1.0.0</Text>
+              <Text style={styles.menuVersion}>הנדיל v1.0.0</Text>
               <Text style={styles.menuTagline}>מחברים אנשים לבעלי מקצוע</Text>
             </View>
           </Animated.View>

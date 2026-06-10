@@ -19,7 +19,21 @@ const workerSchema = new mongoose.Schema(
     rating: { type: Number, default: 0, min: 0, max: 5 },
     reviewCount: { type: Number, default: 0 },
     isAvailable: { type: Boolean, default: true },
+    // Verification
     isVerified: { type: Boolean, default: false },
+    verificationBadges: [{
+      type: String,
+      enum: ['phone', 'id', 'bank'],
+    }],
+    // Portfolio
+    portfolio: [{
+      title:       { type: String, trim: true },
+      description: { type: String, trim: true },
+      beforeImage: { type: String },
+      afterImage:  { type: String },
+      category:    { type: String },
+      createdAt:   { type: Date, default: Date.now },
+    }],
     gallery: [{ type: String }],
   },
   { timestamps: true }

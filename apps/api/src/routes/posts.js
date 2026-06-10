@@ -1,8 +1,41 @@
 const router = require('express').Router();
 const JobPost = require('../models/JobPost');
-const auth = require('../middleware/auth');
+const Worker  = require('../models/Worker');
+const auth    = require('../middleware/auth');
 
-// Create post — residents only
+const URGENCY_SCORE = { urgent: 4, today: 3, week: 2, flexible: 1 };
+const URGENT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function sortByUrgency(posts) {
+  return posts.sort(
+    (a, b) =>
+      (URGENCY_SCORE[b.urgency] || 1) - (URGENCY_SCORE[a.urgency] || 1) ||
+      new Date(b.createdAt) - new Date(a.createdAt)
+  );
+}
+
+// Filter that excludes expired urgent posts (urgency=urgent AND urgencyExpiresAt < now)
+function withExpiryFilter(baseFilter) {
+  return {
+    ...baseFilter,
+    $or: [
+      { urgency: { $ne: 'urgent' } },
+      { urgencyExpiresAt: { $gt: new Date() } },
+    ],
+  };
+}
+
+// Auto-close expired urgent posts in the background (fire-and-forget)
+async function expireUrgentPosts() {
+  try {
+    await JobPost.updateMany(
+      { urgency: 'urgent', status: 'open', urgencyExpiresAt: { $lte: new Date() } },
+      { $set: { status: 'closed' } }
+    );
+  } catch {}
+}
+
+// ─── POST /api/posts ──────────────────────────────────────────────────────────
 router.post('/', auth, async (req, res) => {
   try {
     if (req.user.role !== 'resident') {
@@ -12,6 +45,11 @@ router.post('/', auth, async (req, res) => {
     if (!title || !category) {
       return res.status(400).json({ message: 'כותרת וקטגוריה הם שדות חובה' });
     }
+
+    const resolvedUrgency = urgency || 'flexible';
+    const urgencyExpiresAt =
+      resolvedUrgency === 'urgent' ? new Date(Date.now() + URGENT_TTL_MS) : null;
+
     const post = await JobPost.create({
       resident: req.user.id,
       title,
@@ -19,8 +57,9 @@ router.post('/', auth, async (req, res) => {
       category,
       budget: budget != null ? Number(budget) : null,
       images: images || [],
-      urgency: urgency || 'flexible',
+      urgency: resolvedUrgency,
       location: location || 'תל אביב',
+      urgencyExpiresAt,
     });
     await post.populate('resident', 'name avatar');
     res.status(201).json({ post });
@@ -29,29 +68,69 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// Get open posts feed — authenticated users browse
-router.get('/', auth, async (req, res) => {
+// ─── GET /api/posts/recommended ───────────────────────────────────────────────
+// Smart matching: open + non-expired posts tailored to worker's city + categories
+// Priority: city match AND category match → city only → category only → all open
+router.get('/recommended', auth, async (req, res) => {
   try {
-    const { category, status = 'open', page = 1, limit = 20 } = req.query;
-    const filter = { status };
-    if (category) filter.category = category;
+    if (req.user.role !== 'worker') {
+      return res.status(403).json({ message: 'בעלי מקצוע בלבד' });
+    }
 
-    const [posts, total] = await Promise.all([
-      JobPost.find(filter)
+    expireUrgentPosts(); // background cleanup
+
+    const worker = await Worker.findOne({ user: req.user._id });
+    const baseFilter = { status: 'open' };
+
+    const cityPattern  = worker?.city
+      ? new RegExp(worker.city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      : null;
+    const workerCats   = worker?.categories?.length ? worker.categories : null;
+
+    // Build match stages from broad → narrow
+    const filters = [
+      // 1. Best: same city AND same category
+      ...(cityPattern && workerCats
+        ? [{ ...baseFilter, location: cityPattern, category: { $in: workerCats } }]
+        : []),
+      // 2. Same category any city
+      ...(workerCats
+        ? [{ ...baseFilter, category: { $in: workerCats } }]
+        : []),
+      // 3. Same city any category
+      ...(cityPattern
+        ? [{ ...baseFilter, location: cityPattern }]
+        : []),
+      // 4. Fallback: all open
+      baseFilter,
+    ];
+
+    let posts = [];
+    let isPersonalized = false;
+
+    for (const filter of filters) {
+      const query = withExpiryFilter(filter);
+      const found = await JobPost.find(query)
         .populate('resident', 'name avatar')
-        .populate('acceptedBy', 'name avatar')
         .sort({ createdAt: -1 })
-        .skip((Number(page) - 1) * Number(limit))
-        .limit(Number(limit)),
-      JobPost.countDocuments(filter),
-    ]);
-    res.json({ posts, total, page: Number(page) });
+        .limit(30);
+
+      if (found.length >= 3) {
+        posts = found;
+        isPersonalized = filter !== baseFilter;
+        break;
+      }
+      // collect partial results and keep going
+      if (found.length > 0 && posts.length === 0) posts = found;
+    }
+
+    res.json({ posts: sortByUrgency(posts), total: posts.length, isPersonalized });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 });
 
-// Resident's own posts — must come before /:id
+// ─── GET /api/posts/mine ──────────────────────────────────────────────────────
 router.get('/mine', auth, async (req, res) => {
   try {
     const posts = await JobPost.find({ resident: req.user.id })
@@ -64,7 +143,34 @@ router.get('/mine', auth, async (req, res) => {
   }
 });
 
-// Single post — also returns quoteCount so clients can show "X הצעות" without extra call
+// ─── GET /api/posts ───────────────────────────────────────────────────────────
+router.get('/', auth, async (req, res) => {
+  try {
+    expireUrgentPosts(); // background cleanup
+
+    const { category, status = 'open', page = 1, limit = 20 } = req.query;
+    const baseFilter = { status };
+    if (category) baseFilter.category = category;
+
+    const filter = status === 'open' ? withExpiryFilter(baseFilter) : baseFilter;
+
+    const [posts, total] = await Promise.all([
+      JobPost.find(filter)
+        .populate('resident', 'name avatar')
+        .populate('acceptedBy', 'name avatar')
+        .sort({ createdAt: -1 })
+        .skip((Number(page) - 1) * Number(limit))
+        .limit(Number(limit)),
+      JobPost.countDocuments(filter),
+    ]);
+
+    res.json({ posts: sortByUrgency(posts), total, page: Number(page) });
+  } catch (err) {
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+});
+
+// ─── GET /api/posts/:id ───────────────────────────────────────────────────────
 router.get('/:id', auth, async (req, res) => {
   try {
     const Quote = require('../models/Quote');
@@ -75,13 +181,20 @@ router.get('/:id', auth, async (req, res) => {
       Quote.countDocuments({ jobPost: req.params.id, status: { $in: ['pending', 'accepted'] } }),
     ]);
     if (!post) return res.status(404).json({ message: 'פוסט לא נמצא' });
-    res.json({ post, quoteCount });
+
+    // Return time remaining if urgent
+    const urgencyRemainingMs =
+      post.urgency === 'urgent' && post.urgencyExpiresAt
+        ? Math.max(0, new Date(post.urgencyExpiresAt).getTime() - Date.now())
+        : null;
+
+    res.json({ post, quoteCount, urgencyRemainingMs });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 });
 
-// Worker accepts a job
+// ─── POST /api/posts/:id/accept ───────────────────────────────────────────────
 router.post('/:id/accept', auth, async (req, res) => {
   try {
     if (req.user.role !== 'worker') {
@@ -96,11 +209,10 @@ router.post('/:id/accept', auth, async (req, res) => {
     post.acceptedBy = req.user.id;
     await post.save();
     await post.populate([
-      { path: 'resident', select: 'name avatar phone' },
+      { path: 'resident',   select: 'name avatar phone' },
       { path: 'acceptedBy', select: 'name avatar' },
     ]);
 
-    // Auto-create a booking so it appears in the worker's Bookings tab
     const Booking = require('../models/Booking');
     const existing = await Booking.findOne({ jobPost: post._id });
     if (!existing) {
@@ -113,14 +225,13 @@ router.post('/:id/accept', auth, async (req, res) => {
         price: post.budget ?? null,
       });
     }
-
     res.json({ post });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 });
 
-// Resident closes their own post
+// ─── POST /api/posts/:id/close ────────────────────────────────────────────────
 router.post('/:id/close', auth, async (req, res) => {
   try {
     const post = await JobPost.findOne({ _id: req.params.id, resident: req.user._id });

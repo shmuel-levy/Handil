@@ -1,14 +1,16 @@
 require("dotenv").config();
-const os = require("os");
-const mongoose = require("mongoose");
-const app = require("./app");
+const http      = require("http");
+const os        = require("os");
+const mongoose  = require("mongoose");
+const app       = require("./app");
+const initSocket = require("./socket");
 
-const PORT = process.env.PORT || 4000;
+const PORT      = process.env.PORT || 4000;
 const MONGO_URI = process.env.MONGO_URI;
 
 function getLanIPs() {
   const nets = os.networkInterfaces();
-  const ips = [];
+  const ips  = [];
   for (const name of Object.keys(nets)) {
     for (const iface of nets[name] || []) {
       if (iface.family === "IPv4" && !iface.internal) {
@@ -28,9 +30,12 @@ async function startServer() {
       console.log("⚠️  MONGO_URI missing — starting without DB");
     }
 
-    app.listen(PORT, "0.0.0.0", () => {
+    const httpServer = http.createServer(app);
+    initSocket(httpServer);  // attach Socket.io
+
+    httpServer.listen(PORT, "0.0.0.0", () => {
       const lanIPs = getLanIPs();
-      console.log("\n🚀 Handil API ready");
+      console.log("\n🚀 הנדיל API ready");
       console.log(`   Local  → http://localhost:${PORT}`);
       for (const { name, address } of lanIPs) {
         console.log(`   LAN (${name}) → http://${address}:${PORT}  ← use this in .env`);

@@ -58,6 +58,10 @@ function resolveApiBaseUrl(): string {
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
+export function getBaseUrl(): string {
+  return API_BASE_URL;
+}
+
 // Log the resolved URL once at module load so you can always see it in Metro
 if (__DEV__) {
   console.log(`\n🌐 [API] Base URL: ${API_BASE_URL}\n`);

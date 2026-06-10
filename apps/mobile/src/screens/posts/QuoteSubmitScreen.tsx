@@ -36,7 +36,9 @@ export default function QuoteSubmitScreen() {
   const [message, setMessage]     = useState('');
   const [arrivalDays, setArrival] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess]     = useState(false);
   const [error, setError]         = useState('');
+
 
   const handleSubmit = async () => {
     setError('');
@@ -56,7 +58,8 @@ export default function QuoteSubmitScreen() {
         message:             message.trim(),
         estimatedArrivalDate: arrivalDate.toISOString(),
       });
-      navigation.goBack();
+      setSubmitting(false);
+      setSuccess(true);
     } catch (e: any) {
       const msg = e?.response?.data?.message ?? e?.message ?? 'שגיאת חיבור';
       logger.error('QuoteSubmit', msg);
@@ -64,6 +67,30 @@ export default function QuoteSubmitScreen() {
       setSubmitting(false);
     }
   };
+
+  if (success) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.successContainer}>
+          <View style={styles.successIcon}>
+            <Ionicons name="checkmark-circle" size={72} color={colors.success} />
+          </View>
+          <Text style={styles.successTitle}>הצעתך נשלחה בהצלחה!</Text>
+          <Text style={styles.successSub}>
+            הלקוח יקבל הודעה על הצעתך.{'\n'}תישלח אליך הודעה אם הצעתך תתקבל.
+          </Text>
+          <View style={styles.successDetail}>
+            <Text style={styles.successDetailLabel}>סכום הצעתך</Text>
+            <Text style={styles.successDetailPrice}>₪{Number(price).toLocaleString('he-IL')}</Text>
+          </View>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+            <Ionicons name="arrow-back" size={18} color={colors.white} />
+            <Text style={styles.backBtnText}>חזור לפוסט</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -241,4 +268,33 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.5 },
   submitText: { color: colors.white, fontSize: 16, fontWeight: '800' },
+
+  successContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    padding: 40,
+  },
+  successIcon: { marginBottom: 24 },
+  successTitle: {
+    fontSize: 26, fontWeight: '900', color: colors.textPrimary,
+    textAlign: 'center', marginBottom: 12,
+  },
+  successSub: {
+    fontSize: 15, color: colors.textSecondary,
+    textAlign: 'center', lineHeight: 24, marginBottom: 32,
+  },
+  successDetail: {
+    backgroundColor: colors.successLight, borderRadius: 16,
+    paddingHorizontal: 32, paddingVertical: 18, alignItems: 'center',
+    borderWidth: 1, borderColor: colors.success + '40',
+  },
+  successDetailLabel: { fontSize: 13, color: colors.textMuted, marginBottom: 4 },
+  successDetailPrice: { fontSize: 28, fontWeight: '900', color: colors.success },
+  backBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.primary, paddingVertical: 15, paddingHorizontal: 40,
+    borderRadius: 16, marginTop: 32,
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+  },
+  backBtnText: { color: colors.white, fontSize: 16, fontWeight: '800' },
 });

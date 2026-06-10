@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Handil",
+    "name": "הנדיל",
     "slug": "handil",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -31,7 +31,7 @@
       "output": "single",
       "lang": "he",
       "backgroundColor": "#F9FAFB",
-      "title": "Handil — שוק בעלי מקצוע"
+      "title": "הנדיל — שוק בעלי מקצוע"
     }
   }
 }

@@ -16,15 +16,16 @@ import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { CATEGORIES } from '../../constants/categories';
 import { colors } from '../../constants/colors';
-import { getMyWorkerProfile, updateWorkerProfile } from '../../services/workersApi';
+import { getMyWorkerProfile, getWorker, updateWorkerProfile } from '../../services/workersApi';
 import { useAuthStore } from '../../store/authStore';
-import { WorkerProfile } from '../../types';
+import { WorkerProfile, WorkerStats } from '../../types';
 
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
   const [workerProfile, setWorkerProfile] = useState<WorkerProfile | null>(null);
+  const [workerStats, setWorkerStats] = useState<WorkerStats | null>(null);
   const [editing, setEditing] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
   const [bio, setBio] = useState('');
@@ -34,6 +35,7 @@ export default function ProfileScreen() {
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   const [isAvailable, setIsAvailable] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmLogoutVisible, setConfirmLogoutVisible] = useState(false);
 
   useEffect(() => {
     if (user?.role !== 'worker') return;
@@ -46,6 +48,10 @@ export default function ProfileScreen() {
         setCity(worker.city ?? '');
         setSelectedCats(worker.categories ?? []);
         setIsAvailable(worker.isAvailable ?? true);
+        // Load reliability stats
+        getWorker(worker._id)
+          .then(({ stats }) => setWorkerStats(stats))
+          .catch(() => {});
       })
       .catch(() => {});
   }, [user?.role]);
@@ -94,10 +100,7 @@ export default function ProfileScreen() {
   }
 
   function confirmLogout() {
-    Alert.alert('יציאה', 'האם אתה בטוח שברצונך להתנתק?', [
-      { text: 'ביטול', style: 'cancel' },
-      { text: 'יציאה', style: 'destructive', onPress: () => logout() },
-    ]);
+    setConfirmLogoutVisible(true);
   }
 
   const initial = user?.name?.charAt(0)?.toUpperCase() ?? '?';
@@ -161,6 +164,43 @@ export default function ProfileScreen() {
               value={workerProfile.yearsExperience > 0 ? `${workerProfile.yearsExperience}` : '—'}
               label="שנות ניסיון"
             />
+          </View>
+        )}
+
+        {/* ── Reliability stats dashboard ── */}
+        {isWorker && workerStats && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="bar-chart-outline" size={20} color={colors.primary} />
+              <Text style={styles.cardTitle}>דשבורד ביצועים</Text>
+            </View>
+
+            <View style={styles.dashGrid}>
+              <DashCell
+                icon="checkmark-done-circle"
+                iconColor={colors.success}
+                value={String(workerStats.totalJobsDone)}
+                label="עבודות שהושלמו"
+              />
+              <DashCell
+                icon="trending-up"
+                iconColor="#8B5CF6"
+                value={workerStats.completionRate !== null ? `${workerStats.completionRate}%` : '—'}
+                label="אחוז השלמה"
+              />
+              <DashCell
+                icon="thumbs-up"
+                iconColor={colors.star}
+                value={workerStats.quoteAcceptRate !== null ? `${workerStats.quoteAcceptRate}%` : '—'}
+                label="הצעות שאושרו"
+              />
+              <DashCell
+                icon="time"
+                iconColor={colors.primary}
+                value={workerStats.avgResponseHours !== null ? `${workerStats.avgResponseHours.toFixed(1)}ש׳` : '—'}
+                label="זמן תגובה ממוצע"
+              />
+            </View>
           </View>
         )}
 
@@ -332,10 +372,24 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Logout ── */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout} activeOpacity={0.8}>
-          <Ionicons name="log-out-outline" size={18} color={colors.error} />
-          <Text style={styles.logoutText}>התנתקות</Text>
-        </TouchableOpacity>
+        {confirmLogoutVisible ? (
+          <View style={styles.logoutConfirm}>
+            <Text style={styles.logoutConfirmText}>האם אתה בטוח שברצונך להתנתק?</Text>
+            <View style={styles.logoutConfirmBtns}>
+              <TouchableOpacity style={styles.logoutConfirmYes} onPress={() => logout()} activeOpacity={0.85}>
+                <Text style={styles.logoutConfirmYesText}>כן, התנתק</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.logoutConfirmNo} onPress={() => setConfirmLogoutVisible(false)} activeOpacity={0.85}>
+                <Text style={styles.logoutConfirmNoText}>ביטול</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout} activeOpacity={0.8}>
+            <Ionicons name="log-out-outline" size={18} color={colors.error} />
+            <Text style={styles.logoutText}>התנתקות</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -349,6 +403,18 @@ function StatCard({ icon, iconColor, value, label }: { icon: string; iconColor: 
       <Ionicons name={icon as any} size={18} color={iconColor} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function DashCell({ icon, iconColor, value, label }: { icon: string; iconColor: string; value: string; label: string }) {
+  return (
+    <View style={styles.dashCell}>
+      <View style={[styles.dashIconWrap, { backgroundColor: iconColor + '18' }]}>
+        <Ionicons name={icon as any} size={22} color={iconColor} />
+      </View>
+      <Text style={styles.dashValue}>{value}</Text>
+      <Text style={styles.dashLabel}>{label}</Text>
     </View>
   );
 }
@@ -471,6 +537,22 @@ const styles = StyleSheet.create({
   availabilityRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
   availabilityText: { fontSize: 14, color: colors.textSecondary, fontWeight: '600' },
 
+  // ── Dash grid
+  dashGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 12,
+  },
+  dashCell: {
+    width: '47%', alignItems: 'center', gap: 6,
+    backgroundColor: colors.background, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  dashIconWrap: {
+    width: 44, height: 44, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  dashValue: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+  dashLabel: { fontSize: 11, color: colors.textMuted, textAlign: 'center' },
+
   // ── Settings
   settingsCard: {
     backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: 18,
@@ -498,4 +580,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.errorLight,
   },
   logoutText: { fontSize: 15, fontWeight: '700', color: colors.error },
+  logoutConfirm: {
+    marginHorizontal: 20, padding: 18, borderRadius: 16,
+    backgroundColor: colors.errorLight, borderWidth: 1, borderColor: colors.error + '40',
+    gap: 14,
+  },
+  logoutConfirmText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, textAlign: 'right' },
+  logoutConfirmBtns: { flexDirection: 'row', gap: 10 },
+  logoutConfirmYes: {
+    flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12,
+    backgroundColor: colors.error,
+  },
+  logoutConfirmYesText: { color: colors.white, fontSize: 14, fontWeight: '700' },
+  logoutConfirmNo: {
+    flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12,
+    borderWidth: 1.5, borderColor: colors.border,
+  },
+  logoutConfirmNoText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
 });
