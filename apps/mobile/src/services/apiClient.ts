@@ -29,8 +29,28 @@ function hostFromExpoDev(): string | null {
 }
 
 function resolveApiBaseUrl(): string {
-  // Explicit env var wins in ALL environments (dev and production).
-  // This is the correct path for production builds (EAS Build sets this).
+  // Production builds: env var is required (set in eas.json or CI).
+  // Never auto-detect in production — server is remote, not on the LAN.
+  if (!__DEV__) {
+    const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+    if (fromEnv) return fromEnv.replace(/\/$/, '');
+    return 'http://localhost:4000/api'; // unreachable in practice; satisfies type
+  }
+
+  // Dev web: browser and server share the same machine, so localhost always works.
+  // Do NOT use the env var here — it may hold a LAN IP meant for mobile devices.
+  if (Platform.OS === 'web') return 'http://localhost:4000/api';
+
+  // Dev native: auto-detect the dev machine IP from the Expo Go / Metro host.
+  // This updates automatically on every session, so .env rarely needs touching.
+  const devHost = hostFromExpoDev();
+  if (devHost) {
+    const url = `http://${devHost}:4000/api`;
+    logger.info('API', `Auto-detected host → ${url}`);
+    return url;
+  }
+
+  // Dev native fallback: manual override via .env (useful when auto-detect fails)
   const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (fromEnv) {
     const url = fromEnv.replace(/\/$/, '');
@@ -38,20 +58,7 @@ function resolveApiBaseUrl(): string {
     return url;
   }
 
-  // Web dev — no env var set, assume same machine
-  if (Platform.OS === 'web') return 'http://localhost:4000/api';
-
-  // Native dev: auto-detect from Expo Go Metro host (no .env needed on LAN)
-  if (__DEV__) {
-    const devHost = hostFromExpoDev();
-    if (devHost) {
-      const url = `http://${devHost}:4000/api`;
-      logger.info('API', `Auto-detected host → ${url}`);
-      return url;
-    }
-  }
-
-  // Android emulator fallback
+  // Android emulator
   if (Platform.OS === 'android') return 'http://10.0.2.2:4000/api';
 
   return 'http://localhost:4000/api';
