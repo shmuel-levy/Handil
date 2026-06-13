@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Animated, Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../constants/colors';
 import { AppNotification, useNotificationStore } from '../../store/notificationStore';
 
@@ -52,14 +51,17 @@ function BannerItem({ notification }: { notification: AppNotification }) {
   );
 }
 
+const TOP_OFFSET = Platform.OS === 'android'
+  ? (StatusBar.currentHeight ?? 24) + 8
+  : 52; // iOS safe area approx
+
 export default function NotificationBanner() {
-  const insets       = useSafeAreaInsets();
   const notifications = useNotificationStore((s) => s.notifications);
 
   if (notifications.length === 0) return null;
 
   return (
-    <View style={[styles.container, { top: insets.top + 8 }]} pointerEvents="box-none">
+    <View style={[styles.container, { top: TOP_OFFSET }]} pointerEvents="box-none">
       {notifications.slice(0, 3).map((n) => (
         <BannerItem key={n.id} notification={n} />
       ))}
