@@ -1,6 +1,7 @@
 const express = require('express');
 const Booking = require('../models/Booking');
 const authMiddleware = require('../middleware/auth');
+const { getIO } = require('../socket');
 
 const router = express.Router();
 
@@ -87,6 +88,20 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
 
     booking.status = status;
     await booking.save();
+
+    // Real-time: notify both resident and worker about status change
+    try {
+      const io = getIO();
+      if (io) {
+        const payload = {
+          bookingId: booking._id.toString(),
+          status,
+        };
+        io.to(`user:${booking.resident}`).emit('booking_updated', payload);
+        io.to(`user:${booking.worker}`).emit('booking_updated', payload);
+      }
+    } catch {}
+
     res.json({ booking });
   } catch (err) {
     res.status(500).json({ message: err.message });

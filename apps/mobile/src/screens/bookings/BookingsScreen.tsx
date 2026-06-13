@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategoryBySlug } from '../../constants/categories';
 import { colors } from '../../constants/colors';
 import { getMyBookings, updateBookingStatus } from '../../services/bookingsApi';
+import { connectSocket } from '../../services/socketClient';
 import { useAuthStore } from '../../store/authStore';
 import { Booking } from '../../types';
 
@@ -45,6 +46,18 @@ export default function BookingsScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Real-time: refresh booking list when any booking status changes
+  useEffect(() => {
+    let mounted = true;
+    connectSocket().then((socket) => {
+      if (!mounted) return;
+      const handler = () => { load(); };
+      socket.on('booking_updated', handler);
+      return () => { socket.off('booking_updated', handler); };
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   async function handleAction(bookingId: string, status: 'accepted' | 'rejected' | 'completed' | 'cancelled') {
     try {

@@ -4,6 +4,7 @@ const Worker  = require('../models/Worker');
 const JobPost = require('../models/JobPost');
 const Booking = require('../models/Booking');
 const auth    = require('../middleware/auth');
+const { getIO } = require('../socket');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,25 @@ router.post('/', auth, async (req, res) => {
     });
 
     await quote.populate({ path: 'worker', select: WORKER_SELECT, populate: { path: 'user', select: USER_SELECT } });
+
+    // Real-time: notify the resident that a new quote arrived
+    try {
+      const io = getIO();
+      if (io) {
+        const residentId = typeof post.resident === 'object' ? post.resident._id : post.resident;
+        io.to(`user:${residentId}`).emit('new_quote', {
+          postId:    post._id.toString(),
+          postTitle: post.title,
+          quote: {
+            _id:           quote._id,
+            proposedPrice: quote.proposedPrice,
+            workerName:    workerDoc.user?.name ?? '',
+            workerRating:  workerDoc.rating,
+          },
+        });
+      }
+    } catch {}
+
     res.status(201).json({ quote });
   } catch (err) {
     if (err.code === 11000) {
@@ -162,6 +182,19 @@ router.patch('/:id/accept', auth, async (req, res) => {
       price:       quote.proposedPrice,
     });
 
+    // Real-time: notify the worker their quote was accepted
+    try {
+      const io = getIO();
+      if (io) {
+        io.to(`user:${quote.worker.user._id}`).emit('quote_accepted', {
+          quoteId:   quote._id.toString(),
+          postId:    post._id.toString(),
+          postTitle: post.title,
+          price:     quote.proposedPrice,
+        });
+      }
+    } catch {}
+
     res.json({ quote, post });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });
@@ -185,6 +218,21 @@ router.patch('/:id/reject', auth, async (req, res) => {
 
     quote.status = 'rejected';
     await quote.save();
+
+    // Real-time: notify the worker their quote was rejected
+    try {
+      const io = getIO();
+      if (io) {
+        const workerDoc = await Worker.findById(quote.worker).select('user');
+        if (workerDoc?.user) {
+          io.to(`user:${workerDoc.user}`).emit('quote_rejected', {
+            quoteId:   quote._id.toString(),
+            postTitle: post.title,
+          });
+        }
+      }
+    } catch {}
+
     res.json({ quote });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });

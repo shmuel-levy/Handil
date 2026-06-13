@@ -3,7 +3,7 @@ const http      = require("http");
 const os        = require("os");
 const mongoose  = require("mongoose");
 const app       = require("./app");
-const initSocket = require("./socket");
+const { initSocket } = require("./socket");
 
 const PORT      = process.env.PORT || 4000;
 const MONGO_URI = process.env.MONGO_URI;

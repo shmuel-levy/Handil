@@ -22,6 +22,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { PostsStackParamList } from '../../navigation/types';
 import { getMyPosts, getOpenPosts } from '../../services/postsApi';
 import { getMyQuotes } from '../../services/quotesApi';
+import { connectSocket } from '../../services/socketClient';
 import { getRecommendedPosts, toggleAvailable } from '../../services/workersApi';
 import { useAuthStore } from '../../store/authStore';
 import { JobPost, Quote } from '../../types';
@@ -245,6 +246,25 @@ export default function PostsFeedScreen() {
       setAvailToggling(false);
     }
   };
+
+  // Real-time: prepend new posts for workers
+  useEffect(() => {
+    if (!isWorker) return;
+    let mounted = true;
+    connectSocket().then((socket) => {
+      if (!mounted) return;
+      const handler = (data: { post: JobPost }) => {
+        if (!data.post) return;
+        setPosts((prev) => {
+          if (prev.some((p) => p._id === data.post._id)) return prev;
+          return [data.post, ...prev];
+        });
+      };
+      socket.on('new_post', handler);
+      return () => { socket.off('new_post', handler); };
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, [isWorker]);
 
   const displayedPosts = activeTab === 'recommended' ? recPosts : posts;
 

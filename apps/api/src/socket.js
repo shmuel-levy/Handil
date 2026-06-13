@@ -6,10 +6,15 @@ const Message     = require('./models/Message');
 
 const USER_SELECT = 'name avatar role';
 
+let ioInstance = null;
+
+function getIO() { return ioInstance; }
+
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: { origin: '*', methods: ['GET', 'POST'] },
   });
+  ioInstance = io;
 
   // ── Auth middleware ──────────────────────────────────────────────────────────
   io.use(async (socket, next) => {
@@ -130,4 +135,4 @@ function initSocket(httpServer) {
   return io;
 }
 
-module.exports = initSocket;
+module.exports = { initSocket, getIO };

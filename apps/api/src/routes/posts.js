@@ -2,6 +2,7 @@ const router = require('express').Router();
 const JobPost = require('../models/JobPost');
 const Worker  = require('../models/Worker');
 const auth    = require('../middleware/auth');
+const { getIO } = require('../socket');
 
 const URGENCY_SCORE = { urgent: 4, today: 3, week: 2, flexible: 1 };
 const URGENT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -62,6 +63,24 @@ router.post('/', auth, async (req, res) => {
       urgencyExpiresAt,
     });
     await post.populate('resident', 'name avatar');
+
+    // Real-time: notify all connected workers about the new post
+    try {
+      const io = getIO();
+      if (io) {
+        io.emit('new_post', {
+          post: {
+            _id:      post._id,
+            title:    post.title,
+            category: post.category,
+            location: post.location,
+            urgency:  post.urgency,
+            budget:   post.budget,
+          },
+        });
+      }
+    } catch {}
+
     res.status(201).json({ post });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });
