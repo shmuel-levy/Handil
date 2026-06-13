@@ -51,11 +51,20 @@ const STATUS_LABEL: Record<string, string> = {
 
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
-function PostCard({ post, isWorker, onPress }: { post: JobPost; isWorker: boolean; onPress: () => void }) {
+function PostCard({
+  post, isWorker, onPress, quoteCount = 0, onQuotesPress,
+}: {
+  post: JobPost;
+  isWorker: boolean;
+  onPress: () => void;
+  quoteCount?: number;
+  onQuotesPress?: () => void;
+}) {
   const cat = getCategoryBySlug(post.category);
   const urgencyColor = URGENCY_COLOR[post.urgency] ?? colors.textMuted;
   const isClosed  = post.status === 'closed';
   const isUrgent  = post.urgency === 'urgent';
+  const hasQuotes = !isWorker && quoteCount > 0 && post.status === 'open';
 
   return (
     <TouchableOpacity
@@ -63,6 +72,7 @@ function PostCard({ post, isWorker, onPress }: { post: JobPost; isWorker: boolea
         styles.card,
         isClosed && styles.cardClosed,
         isUrgent && !isClosed && styles.cardUrgent,
+        hasQuotes && styles.cardHasQuotes,
       ]}
       onPress={isClosed ? undefined : onPress}
       activeOpacity={isClosed ? 1 : 0.85}
@@ -80,6 +90,19 @@ function PostCard({ post, isWorker, onPress }: { post: JobPost; isWorker: boolea
           <Ionicons name="close-circle" size={14} color={colors.textMuted} />
           <Text style={styles.closedBannerText}>פוסט זה נסגר</Text>
         </View>
+      )}
+
+      {/* Quote arrival banner — shown for residents when pending quotes exist */}
+      {hasQuotes && (
+        <TouchableOpacity style={styles.quotesBanner} onPress={onQuotesPress} activeOpacity={0.85}>
+          <View style={styles.quotesBannerLeft}>
+            <Ionicons name="pricetag" size={14} color={colors.white} />
+            <Text style={styles.quotesBannerText}>
+              {quoteCount === 1 ? 'הצעת מחיר 1 ממתינה' : `${quoteCount} הצעות מחיר ממתינות`}
+            </Text>
+          </View>
+          <Ionicons name="chevron-back" size={14} color={colors.white} />
+        </TouchableOpacity>
       )}
 
       <View style={[styles.cardTop, isClosed && { opacity: 0.5 }]}>
@@ -306,10 +329,10 @@ export default function PostsFeedScreen() {
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>
-            {isWorker ? 'עבודות פתוחות' : 'הפוסטים שלי'}
+            {isWorker ? 'עבודות פתוחות' : 'הפרויקטים שלי'}
           </Text>
           <Text style={styles.headerSub}>
-            {isWorker ? 'מצא עבודות שמתאימות לך' : 'נהל את בקשות העבודה שלך'}
+            {isWorker ? 'מצא עבודות שמתאימות לך' : 'לחץ על פרויקט לצפייה בהצעות המחיר'}
           </Text>
         </View>
 
@@ -384,7 +407,13 @@ export default function PostsFeedScreen() {
           {displayedPosts.length === 0 ? <EmptyState isWorker={isWorker} tab={activeTab} /> : (
             displayedPosts.map((item) => (
               <View key={item._id} style={styles.desktopCard}>
-                <PostCard post={item} isWorker={isWorker} onPress={() => navigation.navigate('PostDetail', { postId: item._id })} />
+                <PostCard
+                  post={item}
+                  isWorker={isWorker}
+                  onPress={() => navigation.navigate('PostDetail', { postId: item._id })}
+                  quoteCount={item.pendingQuoteCount ?? 0}
+                  onQuotesPress={() => navigation.navigate('QuotesList', { postId: item._id, postTitle: item.title })}
+                />
               </View>
             ))
           )}
@@ -396,7 +425,13 @@ export default function PostsFeedScreen() {
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => (
-            <PostCard post={item} isWorker={isWorker} onPress={() => navigation.navigate('PostDetail', { postId: item._id })} />
+            <PostCard
+              post={item}
+              isWorker={isWorker}
+              onPress={() => navigation.navigate('PostDetail', { postId: item._id })}
+              quoteCount={item.pendingQuoteCount ?? 0}
+              onQuotesPress={() => navigation.navigate('QuotesList', { postId: item._id, postTitle: item.title })}
+            />
           )}
           ListEmptyComponent={<EmptyState isWorker={isWorker} tab={activeTab} />}
         />
@@ -481,6 +516,15 @@ const styles = StyleSheet.create({
   },
   cardClosed: { backgroundColor: colors.borderLight, borderColor: colors.border },
   cardUrgent: { borderColor: colors.error, borderWidth: 1.5 },
+  cardHasQuotes: { borderColor: colors.success, borderWidth: 1.5 },
+  quotesBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.success,
+    marginHorizontal: -16, marginTop: -16, marginBottom: 12,
+    paddingHorizontal: 14, paddingVertical: 9,
+  },
+  quotesBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  quotesBannerText: { fontSize: 13, fontWeight: '700', color: colors.white },
   urgentStrip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: colors.error, paddingHorizontal: 12, paddingVertical: 5,

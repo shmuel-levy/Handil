@@ -97,7 +97,7 @@ export default function HomeScreen() {
               <Text style={styles.desktopHeroTitle}>שלום, {firstName} 👋</Text>
               <View style={styles.locationRow}>
                 <Ionicons name="location" size={13} color={colors.primary} />
-                <Text style={styles.location}>תל אביב</Text>
+                <Text style={styles.location}>{user?.city || 'תל אביב'}</Text>
               </View>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -128,7 +128,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.heroLocationRow}>
               <Ionicons name="location" size={12} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.heroLocation}>תל אביב</Text>
+              <Text style={styles.heroLocation}>{user?.city || 'תל אביב'}</Text>
             </View>
             <TouchableOpacity
               style={styles.heroSearch}

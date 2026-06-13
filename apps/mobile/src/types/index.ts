@@ -130,4 +130,5 @@ export interface JobPost {
   location: string;
   createdAt: string;
   updatedAt: string;
+  pendingQuoteCount?: number;
 }

@@ -156,7 +156,21 @@ router.get('/mine', auth, async (req, res) => {
       .populate('resident', 'name avatar')
       .populate('acceptedBy', 'name avatar phone')
       .sort({ createdAt: -1 });
-    res.json({ posts });
+
+    // Attach pending quote count to each post (single aggregate, not N queries)
+    const Quote = require('../models/Quote');
+    const counts = await Quote.aggregate([
+      { $match: { jobPost: { $in: posts.map((p) => p._id) }, status: 'pending' } },
+      { $group: { _id: '$jobPost', count: { $sum: 1 } } },
+    ]);
+    const countMap = Object.fromEntries(counts.map((c) => [c._id.toString(), c.count]));
+
+    const postsWithCounts = posts.map((post) => ({
+      ...post.toObject(),
+      pendingQuoteCount: countMap[post._id.toString()] ?? 0,
+    }));
+
+    res.json({ posts: postsWithCounts });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });
   }
