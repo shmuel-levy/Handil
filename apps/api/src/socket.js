@@ -11,8 +11,16 @@ let ioInstance = null;
 function getIO() { return ioInstance; }
 
 function initSocket(httpServer) {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+    : '*';
+
   const io = new Server(httpServer, {
-    cors: { origin: '*', methods: ['GET', 'POST'] },
+    cors: {
+      origin: allowedOrigins,
+      methods: ['GET', 'POST'],
+      credentials: Array.isArray(allowedOrigins),
+    },
   });
   ioInstance = io;
 

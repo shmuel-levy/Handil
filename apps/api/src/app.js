@@ -12,7 +12,16 @@ const chatRoutes     = require('./routes/chat');
 
 const app = express();
 
-app.use(cors());
+// CORS: restrict to explicit origins in production; allow all in dev.
+// Set ALLOWED_ORIGINS=https://your-app.com,https://www.your-app.com in production .env
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+  : undefined;
+
+app.use(cors({
+  origin: allowedOrigins ?? true,
+  credentials: true,
+}));
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ limit: '15mb', extended: true }));
 

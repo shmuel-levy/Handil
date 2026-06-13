@@ -29,10 +29,19 @@ function hostFromExpoDev(): string | null {
 }
 
 function resolveApiBaseUrl(): string {
-  // Web — always on same machine
+  // Explicit env var wins in ALL environments (dev and production).
+  // This is the correct path for production builds (EAS Build sets this).
+  const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  if (fromEnv) {
+    const url = fromEnv.replace(/\/$/, '');
+    logger.info('API', `Using env URL → ${url}`);
+    return url;
+  }
+
+  // Web dev — no env var set, assume same machine
   if (Platform.OS === 'web') return 'http://localhost:4000/api';
 
-  // In dev: auto-detect from Expo Go Metro host (works without updating .env)
+  // Native dev: auto-detect from Expo Go Metro host (no .env needed on LAN)
   if (__DEV__) {
     const devHost = hostFromExpoDev();
     if (devHost) {
@@ -42,15 +51,7 @@ function resolveApiBaseUrl(): string {
     }
   }
 
-  // Explicit override via .env (fallback / production)
-  const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
-  if (fromEnv) {
-    const url = fromEnv.replace(/\/$/, '');
-    logger.info('API', `Using env URL → ${url}`);
-    return url;
-  }
-
-  // Android emulator
+  // Android emulator fallback
   if (Platform.OS === 'android') return 'http://10.0.2.2:4000/api';
 
   return 'http://localhost:4000/api';
