@@ -92,7 +92,7 @@ function initSocket(httpServer) {
             lastMessageAt: new Date(),
             ...unreadUpdate,
           },
-        });
+        }, { returnDocument: 'after' });
 
         const payload = {
           _id: msg._id,
@@ -131,7 +131,7 @@ function initSocket(httpServer) {
         );
         await Conversation.findByIdAndUpdate(conversationId, {
           $set: { [`unreadCounts.${userId}`]: 0 },
-        });
+        }, { returnDocument: 'after' });
         // Notify the other side that messages were read
         socket.to(`conv:${conversationId}`).emit('messages_read', { conversationId, readBy: userId });
       } catch {}

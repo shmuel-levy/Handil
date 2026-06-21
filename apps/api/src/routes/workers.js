@@ -68,7 +68,7 @@ router.put('/me', authMiddleware, async (req, res) => {
     const worker = await Worker.findOneAndUpdate(
       { user: req.user._id },
       update,
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     ).populate('user', 'name phone avatar');
 
     res.json({ worker });
@@ -88,7 +88,7 @@ router.patch('/me/available', authMiddleware, async (req, res) => {
     const worker = await Worker.findOneAndUpdate(
       { user: req.user._id },
       { isAvailable },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('user', 'name phone avatar');
 
     res.json({ worker });
@@ -111,7 +111,7 @@ router.post('/me/verify', authMiddleware, async (req, res) => {
     const worker = await Worker.findOneAndUpdate(
       { user: req.user._id },
       { $addToSet: { verificationBadges: badge } },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('user', 'name phone avatar');
 
     if (!worker) return res.status(404).json({ message: 'פרופיל עובד לא נמצא' });
@@ -139,7 +139,7 @@ router.post('/me/portfolio', authMiddleware, async (req, res) => {
     const worker = await Worker.findOneAndUpdate(
       { user: req.user._id },
       { $push: { portfolio: { title, description, beforeImage, afterImage, category } } },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('user', 'name phone avatar');
 
     if (!worker) return res.status(404).json({ message: 'פרופיל עובד לא נמצא' });
@@ -157,7 +157,7 @@ router.delete('/me/portfolio/:itemId', authMiddleware, async (req, res) => {
     const worker = await Worker.findOneAndUpdate(
       { user: req.user._id },
       { $pull: { portfolio: { _id: req.params.itemId } } },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('user', 'name phone avatar');
 
     if (!worker) return res.status(404).json({ message: 'פרופיל עובד לא נמצא' });

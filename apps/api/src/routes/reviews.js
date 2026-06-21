@@ -12,7 +12,8 @@ async function recalcWorkerRating(workerUserId) {
   const avg = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   await Worker.findOneAndUpdate(
     { user: workerUserId },
-    { rating: Math.round(avg * 10) / 10, reviewCount: reviews.length }
+    { rating: Math.round(avg * 10) / 10, reviewCount: reviews.length },
+    { returnDocument: 'after' }
   );
 }
 
