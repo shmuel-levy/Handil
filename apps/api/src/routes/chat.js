@@ -86,7 +86,7 @@ router.get('/conversations/:id/messages', auth, async (req, res) => {
     // Reset unread count for this user
     await Conversation.findByIdAndUpdate(req.params.id, {
       $set: { [`unreadCounts.${req.user._id}`]: 0 },
-    });
+    }, { returnDocument: 'after' });
 
     res.json({ messages: messages.reverse(), page: Number(page) });
   } catch (err) {
@@ -133,7 +133,7 @@ router.post('/conversations/:id/messages', auth, async (req, res) => {
         lastMessageAt: new Date(),
         ...unreadUpdate,
       },
-    });
+    }, { returnDocument: 'after' });
 
     res.status(201).json({ message: msg });
   } catch (err) {
