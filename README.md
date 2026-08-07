@@ -2,6 +2,8 @@
 
 Handil is a **Hebrew-first mobile marketplace** connecting new residents in Tel Aviv with trusted local service professionals. Built to be better than Midrag — with real booking, verified profiles, RTL-native UX, and a modern stack.
 
+Phase1: 
+
 ---
 
 ## Why Handil beats Midrag
