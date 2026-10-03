@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Worker = require('../models/Worker');
 const authMiddleware = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { schemas } = require('@handil/shared');
 
 const router = express.Router();
 
@@ -21,18 +23,10 @@ const sanitizeUser = (u) => ({
 });
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', validate(schemas.registerSchema), async (req, res) => {
   try {
+    // Shape, role, e-mail format and password strength are enforced by the schema
     const { name, email, password, phone, role } = req.body;
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({ message: 'שדות חובה חסרים' });
-    }
-    if (!['resident', 'worker'].includes(role)) {
-      return res.status(400).json({ message: 'תפקיד לא חוקי' });
-    }
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'הסיסמה חייבת להיות לפחות 6 תווים' });
-    }
 
     const exists = await User.findOne({ email });
     if (exists) return res.status(409).json({ message: 'האימייל כבר רשום במערכת' });
@@ -51,10 +45,9 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', validate(schemas.loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'נא להזין אימייל וסיסמה' });
 
     const user = await User.findOne({ email });
     if (!user) return res.status(401).json({ message: 'פרטים שגויים' });
@@ -73,15 +66,16 @@ router.get('/me', authMiddleware, (req, res) => {
   res.json(sanitizeUser(req.user));
 });
 
-// PUT /api/auth/me  — update profile (city, preferred categories, phone, name)
-router.put('/me', authMiddleware, async (req, res) => {
+// PUT /api/auth/me  — update profile (city, preferred categories, phone, name, avatar)
+router.put('/me', authMiddleware, validate(schemas.updateProfileSchema), async (req, res) => {
   try {
-    const { city, preferredCategories, phone, name } = req.body;
+    const { city, preferredCategories, phone, name, avatar } = req.body;
     const update = {};
     if (city !== undefined) update.city = city;
     if (preferredCategories !== undefined) update.preferredCategories = preferredCategories;
     if (phone !== undefined) update.phone = phone;
     if (name !== undefined) update.name = name;
+    if (avatar !== undefined) update.avatar = avatar;
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: update },

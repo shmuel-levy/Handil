@@ -4,7 +4,9 @@ const Worker  = require('../models/Worker');
 const JobPost = require('../models/JobPost');
 const Booking = require('../models/Booking');
 const auth    = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 const { getIO } = require('../socket');
+const { schemas } = require('@handil/shared');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -13,15 +15,12 @@ const USER_SELECT   = 'name avatar phone';
 
 // ─── POST /quotes ─────────────────────────────────────────────────────────────
 // Worker submits a quote for a job post
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, validate(schemas.createQuoteSchema), async (req, res) => {
   try {
     if (req.user.role !== 'worker') {
       return res.status(403).json({ message: 'רק בעלי מקצוע יכולים לשלוח הצעות' });
     }
     const { jobPostId, proposedPrice, message, estimatedArrivalDate } = req.body;
-    if (!jobPostId || proposedPrice == null) {
-      return res.status(400).json({ message: 'חסרים שדות חובה' });
-    }
 
     const post = await JobPost.findById(jobPostId);
     if (!post)            return res.status(404).json({ message: 'פוסט לא נמצא' });
@@ -176,6 +175,7 @@ router.patch('/:id/accept', auth, async (req, res) => {
     await Booking.create({
       resident:    residentId,
       worker:      quote.worker.user._id,
+      jobPost:     post._id,
       category:    post.category,
       description: post.title,
       status:      'accepted',

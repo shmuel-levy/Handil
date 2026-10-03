@@ -39,4 +39,11 @@ const workerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Directory listing filtered by category, best-rated first
+workerSchema.index({ categories: 1, rating: -1, reviewCount: -1 });
+// Default directory sort
+workerSchema.index({ rating: -1, reviewCount: -1 });
+// City filter
+workerSchema.index({ city: 1 });
+
 module.exports = mongoose.model('Worker', workerSchema);

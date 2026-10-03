@@ -3,6 +3,8 @@ const Review = require('../models/Review');
 const Booking = require('../models/Booking');
 const Worker = require('../models/Worker');
 const authMiddleware = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { schemas } = require('@handil/shared');
 
 const router = express.Router();
 
@@ -18,11 +20,10 @@ async function recalcWorkerRating(workerUserId) {
 }
 
 // POST /api/reviews
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, validate(schemas.createReviewSchema), async (req, res) => {
   try {
     if (req.user.role !== 'resident') return res.status(403).json({ message: 'דיירים בלבד' });
     const { bookingId, rating, comment } = req.body;
-    if (!bookingId || !rating) return res.status(400).json({ message: 'שדות חובה חסרים' });
 
     const booking = await Booking.findById(bookingId);
     if (!booking || booking.status !== 'completed') {

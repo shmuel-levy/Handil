@@ -19,6 +19,12 @@ const jobPostSchema = new mongoose.Schema(
 );
 
 // Index for fast expiry queries
+// Main worker feed: open posts, newest first
+jobPostSchema.index({ status: 1, createdAt: -1 });
+// Category-filtered feed
+jobPostSchema.index({ category: 1, status: 1, createdAt: -1 });
+// "My posts" for a resident
+jobPostSchema.index({ resident: 1, createdAt: -1 });
 jobPostSchema.index({ urgencyExpiresAt: 1 }, { sparse: true });
 
 module.exports = mongoose.model('JobPost', jobPostSchema);

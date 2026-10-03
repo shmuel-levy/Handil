@@ -1,16 +1,17 @@
 const express = require('express');
 const Booking = require('../models/Booking');
 const authMiddleware = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 const { getIO } = require('../socket');
+const { schemas, WORKER_BOOKING_STATUSES, RESIDENT_BOOKING_STATUSES } = require('@handil/shared');
 
 const router = express.Router();
 
 // POST /api/bookings
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, validate(schemas.createBookingSchema), async (req, res) => {
   try {
     if (req.user.role !== 'resident') return res.status(403).json({ message: 'דיירים בלבד' });
     const { workerUserId, category, description, scheduledDate } = req.body;
-    if (!workerUserId || !category) return res.status(400).json({ message: 'שדות חובה חסרים' });
 
     const booking = await Booking.create({
       resident: req.user._id,
@@ -65,7 +66,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // PATCH /api/bookings/:id/status
-router.patch('/:id/status', authMiddleware, async (req, res) => {
+router.patch('/:id/status', authMiddleware, validate(schemas.updateBookingStatusSchema), async (req, res) => {
   try {
     const { status } = req.body;
     const booking = await Booking.findById(req.params.id);
@@ -76,8 +77,8 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
 
     if (!isWorker && !isResident) return res.status(403).json({ message: 'אין גישה' });
 
-    const workerStatuses = ['accepted', 'rejected', 'completed'];
-    const residentStatuses = ['cancelled'];
+    const workerStatuses = WORKER_BOOKING_STATUSES;
+    const residentStatuses = RESIDENT_BOOKING_STATUSES;
 
     if (isWorker && !workerStatuses.includes(status)) {
       return res.status(400).json({ message: 'סטטוס לא חוקי לעובד' });

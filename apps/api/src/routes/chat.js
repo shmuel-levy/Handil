@@ -3,16 +3,17 @@ const Conversation  = require('../models/Conversation');
 const Message       = require('../models/Message');
 const User          = require('../models/User');
 const auth          = require('../middleware/auth');
+const { validate }  = require('../middleware/validate');
+const { schemas }   = require('@handil/shared');
 
 const USER_SELECT = 'name avatar role';
 
 // ─── POST /api/chat/conversations ─────────────────────────────────────────────
 // Start or fetch a conversation between current user and another user
 // Body: { otherUserId, jobPostId? }
-router.post('/conversations', auth, async (req, res) => {
+router.post('/conversations', auth, validate(schemas.createConversationSchema), async (req, res) => {
   try {
     const { otherUserId, jobPostId } = req.body;
-    if (!otherUserId) return res.status(400).json({ message: 'חסר otherUserId' });
     if (otherUserId === req.user._id.toString()) {
       return res.status(400).json({ message: 'לא ניתן לשלוח הודעה לעצמך' });
     }
@@ -96,10 +97,9 @@ router.get('/conversations/:id/messages', auth, async (req, res) => {
 
 // ─── POST /api/chat/conversations/:id/messages ────────────────────────────────
 // Send a message (REST fallback — primary path is Socket.io)
-router.post('/conversations/:id/messages', auth, async (req, res) => {
+router.post('/conversations/:id/messages', auth, validate(schemas.sendMessageSchema), async (req, res) => {
   try {
-    const { text } = req.body;
-    if (!text?.trim()) return res.status(400).json({ message: 'הודעה ריקה' });
+    const { text } = req.body; // already trimmed and length-checked by the schema
 
     const conv = await Conversation.findById(req.params.id);
     if (!conv) return res.status(404).json({ message: 'שיחה לא נמצאה' });

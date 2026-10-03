@@ -1,34 +1,53 @@
 const express = require('express');
+const User    = require('../models/User');
 const Worker  = require('../models/Worker');
 const Review  = require('../models/Review');
 const Booking = require('../models/Booking');
 const Quote   = require('../models/Quote');
 const authMiddleware = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { schemas, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } = require('@handil/shared');
 
 const router = express.Router();
+
+/** Escapes user input before it becomes a RegExp, so `.` or `(` cannot break the query. */
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 // ─── GET /api/workers ─────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const { category, city, q, page = 1, limit = 100 } = req.query;
+    const { category, city, q } = req.query;
+    // Clamp so a client cannot pull the whole directory in one request
+    const page  = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.limit) || DEFAULT_PAGE_SIZE));
+
     const filter = {};
     if (category) filter.categories = category;
-    if (city)     filter.city = new RegExp(city, 'i');
+    if (city)     filter.city = new RegExp(escapeRegex(city), 'i');
 
-    const workers = await Worker.find(filter)
-      .populate('user', 'name phone avatar')
-      .sort({ rating: -1, reviewCount: -1 })
-      .skip((Number(page) - 1) * Number(limit))
-      .limit(Number(limit));
+    // Name search resolves to user ids first. Filtering in JS after the query
+    // used to drop matches that fell outside the current page, so searching a
+    // name on page 1 could return nothing while the worker existed on page 2.
+    if (q) {
+      const matchingUsers = await User.find({ name: new RegExp(escapeRegex(q), 'i') }).select('_id');
+      filter.user = { $in: matchingUsers.map((u) => u._id) };
+    }
 
-    // Filter out workers whose user document was deleted
-    const validWorkers = workers.filter((w) => w.user != null);
+    const [workers, total] = await Promise.all([
+      Worker.find(filter)
+        .populate('user', 'name phone avatar')
+        .sort({ rating: -1, reviewCount: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Worker.countDocuments(filter),
+    ]);
 
-    const results = q
-      ? validWorkers.filter((w) => w.user?.name?.toLowerCase().includes(q.toLowerCase()))
-      : validWorkers;
+    // Drop profiles whose user document was deleted
+    const results = workers.filter((w) => w.user != null);
 
-    res.json({ workers: results, page: Number(page) });
+    res.json({ workers: results, total, page, limit });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -47,7 +66,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 });
 
 // ─── PUT /api/workers/me ──────────────────────────────────────────────────────
-router.put('/me', authMiddleware, async (req, res) => {
+router.put('/me', authMiddleware, validate(schemas.updateWorkerSchema), async (req, res) => {
   try {
     if (req.user.role !== 'worker') return res.status(403).json({ message: 'עובדים בלבד' });
     const {
@@ -79,11 +98,10 @@ router.put('/me', authMiddleware, async (req, res) => {
 
 // ─── PATCH /api/workers/me/available ─────────────────────────────────────────
 // Quick "זמין עכשיו" toggle
-router.patch('/me/available', authMiddleware, async (req, res) => {
+router.patch('/me/available', authMiddleware, validate(schemas.availabilitySchema), async (req, res) => {
   try {
     if (req.user.role !== 'worker') return res.status(403).json({ message: 'עובדים בלבד' });
     const { isAvailable } = req.body;
-    if (isAvailable === undefined) return res.status(400).json({ message: 'חסר isAvailable' });
 
     const worker = await Worker.findOneAndUpdate(
       { user: req.user._id },
@@ -98,15 +116,17 @@ router.patch('/me/available', authMiddleware, async (req, res) => {
 });
 
 // ─── POST /api/workers/me/verify ─────────────────────────────────────────────
-// Add a verification badge: 'phone' | 'id' | 'bank'
-// In production this would require proof upload + admin approval.
-// For MVP we accept the badge type and add it directly.
-router.post('/me/verify', authMiddleware, async (req, res) => {
+// Records a SELF-DECLARED badge: 'phone' | 'id' | 'bank'.
+//
+// No proof is checked here, so this endpoint deliberately does NOT grant
+// `isVerified`. Showing a platform-verified badge to someone who merely tapped
+// a button would mislead residents choosing who to let into their home.
+// `isVerified` is reserved for a real review process (proof upload + approval)
+// and can only be set out-of-band until that exists.
+router.post('/me/verify', authMiddleware, validate(schemas.verifyBadgeSchema), async (req, res) => {
   try {
     if (req.user.role !== 'worker') return res.status(403).json({ message: 'עובדים בלבד' });
     const { badge } = req.body; // 'phone' | 'id' | 'bank'
-    const VALID = ['phone', 'id', 'bank'];
-    if (!VALID.includes(badge)) return res.status(400).json({ message: 'תג לא תקין' });
 
     const worker = await Worker.findOneAndUpdate(
       { user: req.user._id },
@@ -116,12 +136,6 @@ router.post('/me/verify', authMiddleware, async (req, res) => {
 
     if (!worker) return res.status(404).json({ message: 'פרופיל עובד לא נמצא' });
 
-    // Auto-set isVerified when worker has all 3 badges
-    if (worker.verificationBadges.length >= 3) {
-      worker.isVerified = true;
-      await worker.save();
-    }
-
     res.json({ worker });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -130,11 +144,10 @@ router.post('/me/verify', authMiddleware, async (req, res) => {
 
 // ─── POST /api/workers/me/portfolio ──────────────────────────────────────────
 // Add portfolio item
-router.post('/me/portfolio', authMiddleware, async (req, res) => {
+router.post('/me/portfolio', authMiddleware, validate(schemas.portfolioItemSchema), async (req, res) => {
   try {
     if (req.user.role !== 'worker') return res.status(403).json({ message: 'עובדים בלבד' });
     const { title, description, beforeImage, afterImage, category } = req.body;
-    if (!title) return res.status(400).json({ message: 'כותרת נדרשת' });
 
     const worker = await Worker.findOneAndUpdate(
       { user: req.user._id },

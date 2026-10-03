@@ -3,6 +3,18 @@
 // Usage: npm run demo (from the repo root)
 
 require('dotenv').config();
+
+// Demo mode is self-contained: guarantee a secret BEFORE any module that reads it
+if (!process.env.JWT_ACCESS_SECRET) {
+  process.env.JWT_ACCESS_SECRET = 'handil-demo-secret-do-not-use-in-production';
+}
+
+// Demos switch between the seeded accounts constantly. The production
+// brute-force limit (10 logins / 15 min) locks that out, so raise it here.
+// Rate limiting stays ON — only the threshold changes.
+process.env.RATE_LIMIT_AUTH_MAX   = process.env.RATE_LIMIT_AUTH_MAX   ?? '200';
+process.env.RATE_LIMIT_WRITE_MAX  = process.env.RATE_LIMIT_WRITE_MAX  ?? '200';
+process.env.RATE_LIMIT_GLOBAL_MAX = process.env.RATE_LIMIT_GLOBAL_MAX ?? '2000';
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
 const http     = require('http');
@@ -52,10 +64,7 @@ async function seed() {
 }
 
 async function start() {
-  // Force a JWT secret for demo mode if not set
-  if (!process.env.JWT_ACCESS_SECRET) {
-    process.env.JWT_ACCESS_SECRET = 'handil-demo-secret-do-not-use-in-production';
-  }
+  // The JWT secret is set at the top of this file, before any module loads it.
 
   console.log('\n--- Handil DEMO MODE ---');
   console.log('Starting in-memory MongoDB...');

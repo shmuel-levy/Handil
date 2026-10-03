@@ -2,10 +2,18 @@ const router = require('express').Router();
 const JobPost = require('../models/JobPost');
 const Worker  = require('../models/Worker');
 const auth    = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 const { getIO } = require('../socket');
+const {
+  schemas, URGENT_TTL_MS, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE,
+} = require('@handil/shared');
 
 const URGENCY_SCORE = { urgent: 4, today: 3, week: 2, flexible: 1 };
-const URGENT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Job posts can carry base64 images. They are never needed in a list view, so
+// list endpoints exclude them — otherwise every feed refresh downloads every
+// image on every post.
+const LIST_EXCLUDE = '-images';
 
 function sortByUrgency(posts) {
   return posts.sort(
@@ -37,15 +45,12 @@ async function expireUrgentPosts() {
 }
 
 // ─── POST /api/posts ──────────────────────────────────────────────────────────
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, validate(schemas.createPostSchema), async (req, res) => {
   try {
     if (req.user.role !== 'resident') {
       return res.status(403).json({ message: 'רק תושבים יכולים לפרסם עבודות' });
     }
     const { title, description, category, budget, images, urgency, location } = req.body;
-    if (!title || !category) {
-      return res.status(400).json({ message: 'כותרת וקטגוריה הם שדות חובה' });
-    }
 
     const resolvedUrgency = urgency || 'flexible';
     const urgencyExpiresAt =
@@ -130,6 +135,7 @@ router.get('/recommended', auth, async (req, res) => {
     for (const filter of filters) {
       const query = withExpiryFilter(filter);
       const found = await JobPost.find(query)
+        .select(LIST_EXCLUDE)
         .populate('resident', 'name avatar')
         .sort({ createdAt: -1 })
         .limit(30);
@@ -153,6 +159,7 @@ router.get('/recommended', auth, async (req, res) => {
 router.get('/mine', auth, async (req, res) => {
   try {
     const posts = await JobPost.find({ resident: req.user.id })
+      .select(LIST_EXCLUDE)
       .populate('resident', 'name avatar')
       .populate('acceptedBy', 'name avatar phone')
       .sort({ createdAt: -1 });
@@ -181,7 +188,11 @@ router.get('/', auth, async (req, res) => {
   try {
     expireUrgentPosts(); // background cleanup
 
-    const { category, status = 'open', page = 1, limit = 20 } = req.query;
+    const { category, status = 'open' } = req.query;
+    // Clamp so a client cannot ask for the whole collection in one request
+    const page  = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.limit) || DEFAULT_PAGE_SIZE));
+
     const baseFilter = { status };
     if (category) baseFilter.category = category;
 
@@ -189,6 +200,7 @@ router.get('/', auth, async (req, res) => {
 
     const [posts, total] = await Promise.all([
       JobPost.find(filter)
+        .select(LIST_EXCLUDE)
         .populate('resident', 'name avatar')
         .populate('acceptedBy', 'name avatar')
         .sort({ createdAt: -1 })
@@ -247,11 +259,14 @@ router.post('/:id/accept', auth, async (req, res) => {
     ]);
 
     const Booking = require('../models/Booking');
+    // `jobPost` is now a real field on Booking, so this guard genuinely
+    // prevents a second booking for the same post.
     const existing = await Booking.findOne({ jobPost: post._id });
     if (!existing) {
       await Booking.create({
         resident: post.resident._id,
         worker: req.user.id,
+        jobPost: post._id,
         category: post.category,
         description: post.title,
         status: 'accepted',
