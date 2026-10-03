@@ -29,7 +29,8 @@
     "react-native-screens": "~4.16.0",
     "react-native-web": "^0.21.0",
     "socket.io-client": "^4.8.3",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.14",
+    "@handil/shared": "*"
   },
   "devDependencies": {
     "@types/react": "~18.3.0",

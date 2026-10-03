@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "demo": "node src/demo/server.js",
     "test": "jest --runInBand --forceExit",
-    "test:watch": "jest --watch --runInBand"
+    "test:watch": "jest --watch --runInBand",
+    "test:coverage": "jest --runInBand --forceExit --coverage"
   },
   "keywords": [],
   "author": "",
@@ -18,14 +19,18 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.4.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "@handil/shared": "*"
   },
   "devDependencies": {
     "jest": "^29.7.0",
     "mongodb-memory-server": "^11.2.0",
     "nodemon": "^3.1.14",
+    "socket.io-client": "^4.8.3",
     "supertest": "^7.2.2"
   },
   "engines": {
@@ -36,6 +41,14 @@
     "testMatch": [
       "**/__tests__/**/*.test.js"
     ],
-    "testTimeout": 30000
+    "testTimeout": 30000,
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "src/demo/",
+      "src/server.js"
+    ]
   }
 }
