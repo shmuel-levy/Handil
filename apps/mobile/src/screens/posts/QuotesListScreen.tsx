@@ -107,6 +107,10 @@ export default function QuotesListScreen() {
       navigation.goBack();
     } catch (e: any) {
       logger.error('QuotesList', 'accept failed', e?.message);
+      // e.g. another worker took the job a moment ago — say so, and refresh
+      // so the list reflects what actually happened
+      Alert.alert('לא ניתן לאשר את ההצעה', e?.response?.data?.message ?? 'נסו שוב בעוד רגע');
+      load().catch(() => {});
     } finally {
       setActionId(null);
     }
