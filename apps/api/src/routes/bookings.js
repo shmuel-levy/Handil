@@ -1,9 +1,13 @@
-const express = require('express');
+const express  = require('express');
+const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
+const User    = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { getIO } = require('../socket');
 const { schemas, WORKER_BOOKING_STATUSES, RESIDENT_BOOKING_STATUSES } = require('@handil/shared');
+
+const FINAL_BOOKING_STATUSES = ['completed', 'rejected', 'cancelled'];
 
 const router = express.Router();
 
@@ -12,6 +16,16 @@ router.post('/', authMiddleware, validate(schemas.createBookingSchema), async (r
   try {
     if (req.user.role !== 'resident') return res.status(403).json({ message: 'דיירים בלבד' });
     const { workerUserId, category, description, scheduledDate } = req.body;
+
+    // Without this a booking could be addressed to any id at all — another
+    // resident, or a user that does not exist — and would sit pending forever.
+    if (!mongoose.isValidObjectId(workerUserId)) {
+      return res.status(400).json({ message: 'מזהה בעל מקצוע לא תקין' });
+    }
+    const workerUser = await User.findById(workerUserId).select('role');
+    if (!workerUser || workerUser.role !== 'worker') {
+      return res.status(404).json({ message: 'בעל מקצוע לא נמצא' });
+    }
 
     const booking = await Booking.create({
       resident: req.user._id,
@@ -76,6 +90,12 @@ router.patch('/:id/status', authMiddleware, validate(schemas.updateBookingStatus
     const isResident = booking.resident.toString() === req.user._id.toString();
 
     if (!isWorker && !isResident) return res.status(403).json({ message: 'אין גישה' });
+
+    // Finished bookings are final. Otherwise a worker could "complete" a job the
+    // resident had cancelled — which would then unlock a review for it.
+    if (FINAL_BOOKING_STATUSES.includes(booking.status)) {
+      return res.status(400).json({ message: 'לא ניתן לשנות הזמנה שהסתיימה' });
+    }
 
     const workerStatuses = WORKER_BOOKING_STATUSES;
     const residentStatuses = RESIDENT_BOOKING_STATUSES;

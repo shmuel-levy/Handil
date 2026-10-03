@@ -10,6 +10,7 @@ const { initSocket } = require('../../src/socket');
 const db           = require('../helpers/db');
 const Conversation = require('../../src/models/Conversation');
 const Message      = require('../../src/models/Message');
+const { MESSAGE_MAX } = require('@handil/shared');
 const {
   createResident, createWorkerUser, createConversation, tokenFor,
 } = require('../helpers/factories');
@@ -330,5 +331,61 @@ describe('mark_read', () => {
     const payload = await readReceipt;
     expect(payload.conversationId).toBe(convId);
     expect(payload.readBy).toBe(worker._id.toString());
+  });
+
+  it('ignores mark_read from someone outside the conversation', async () => {
+    const resident = await createResident();
+    const { user: worker } = await createWorkerUser();
+    const stranger = await createResident();
+    const conv = await createConversation([resident._id, worker._id]);
+    const convId = conv._id.toString();
+
+    const senderClient = await connect(tokenFor(resident));
+    senderClient.emit('join_conversation', { conversationId: convId });
+    await new Promise((r) => setTimeout(r, 300));
+    await emitWithAck(senderClient, 'send_message', { conversationId: convId, text: 'שלום' });
+
+    const strangerClient = await connect(tokenFor(stranger));
+    strangerClient.emit('mark_read', { conversationId: convId });
+
+    await expectNoEvent(senderClient, 'messages_read');
+    const msg = await Message.findOne({ conversation: conv._id });
+    expect(msg.readBy.map(String)).not.toContain(stranger._id.toString());
+  });
+});
+
+// ─── send_message limits ──────────────────────────────────────────────────────
+
+describe('send_message validation', () => {
+  it('rejects a message over the shared length limit, like the REST endpoint', async () => {
+    const resident = await createResident();
+    const { user: worker } = await createWorkerUser();
+    const conv = await createConversation([resident._id, worker._id]);
+
+    const client = await connect(tokenFor(resident));
+    const ack = await emitWithAck(client, 'send_message', {
+      conversationId: conv._id.toString(),
+      text: 'א'.repeat(MESSAGE_MAX + 1),
+    });
+
+    expect(ack.error).toBe('ההודעה ארוכה מדי');
+    expect(await Message.countDocuments()).toBe(0);
+  });
+
+  it('counts every message when several arrive at once', async () => {
+    const resident = await createResident();
+    const { user: worker } = await createWorkerUser();
+    const conv = await createConversation([resident._id, worker._id]);
+    const convId = conv._id.toString();
+
+    const client = await connect(tokenFor(resident));
+    await Promise.all(
+      Array.from({ length: 5 }, (_, i) =>
+        emitWithAck(client, 'send_message', { conversationId: convId, text: `הודעה ${i}` })
+      )
+    );
+
+    const stored = await Conversation.findById(conv._id);
+    expect(stored.unreadCounts.get(worker._id.toString())).toBe(5);
   });
 });

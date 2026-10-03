@@ -245,14 +245,18 @@ router.post('/:id/accept', auth, async (req, res) => {
     if (req.user.role !== 'worker') {
       return res.status(403).json({ message: 'רק בעלי מקצוע יכולים לקבל עבודות' });
     }
-    const post = await JobPost.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'פוסט לא נמצא' });
-    if (post.status !== 'open') {
+    // Claim atomically: only one of several concurrent accepts can flip
+    // status from 'open', so two workers can never both get the job.
+    const post = await JobPost.findOneAndUpdate(
+      { _id: req.params.id, status: 'open' },
+      { $set: { status: 'accepted', acceptedBy: req.user._id } },
+      { returnDocument: 'after' }
+    );
+    if (!post) {
+      const exists = await JobPost.exists({ _id: req.params.id });
+      if (!exists) return res.status(404).json({ message: 'פוסט לא נמצא' });
       return res.status(400).json({ message: 'הפוסט כבר לא פתוח לקבלה' });
     }
-    post.status = 'accepted';
-    post.acceptedBy = req.user.id;
-    await post.save();
     await post.populate([
       { path: 'resident',   select: 'name avatar phone' },
       { path: 'acceptedBy', select: 'name avatar' },

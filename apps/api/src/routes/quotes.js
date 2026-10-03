@@ -57,7 +57,8 @@ router.post('/', auth, validate(schemas.createQuoteSchema), async (req, res) => 
           quote: {
             _id:           quote._id,
             proposedPrice: quote.proposedPrice,
-            workerName:    workerDoc.user?.name ?? '',
+            // workerDoc.user is an unpopulated ObjectId; the sender is the worker
+            workerName:    req.user.name ?? '',
             workerRating:  workerDoc.rating,
           },
         });
@@ -141,15 +142,25 @@ router.patch('/:id/accept', auth, async (req, res) => {
       return res.status(400).json({ message: 'ניתן לקבל רק הצעות בהמתנה' });
     }
 
-    const post = await JobPost.findById(quote.jobPost);
-    if (!post) return res.status(404).json({ message: 'פוסט לא נמצא' });
-    if (post.status !== 'open') {
-      return res.status(400).json({ message: 'הפוסט כבר לא פתוח' });
-    }
+    const existingPost = await JobPost.findById(quote.jobPost);
+    if (!existingPost) return res.status(404).json({ message: 'פוסט לא נמצא' });
 
-    const residentId = typeof post.resident === 'object' ? post.resident._id : post.resident;
+    const residentId = typeof existingPost.resident === 'object' ? existingPost.resident._id : existingPost.resident;
     if (residentId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'אין הרשאה לאשר הצעה זו' });
+    }
+
+    // Claim the post atomically. A separate "is it open?" check followed by a
+    // save let two concurrent accepts (two quotes, or a quote and a worker's
+    // direct accept) both succeed, leaving the post and booking disagreeing
+    // about who got the job.
+    const post = await JobPost.findOneAndUpdate(
+      { _id: existingPost._id, status: 'open' },
+      { $set: { status: 'accepted', acceptedBy: quote.worker.user._id } },
+      { returnDocument: 'after' }
+    );
+    if (!post) {
+      return res.status(400).json({ message: 'הפוסט כבר לא פתוח' });
     }
 
     // Accept this quote
@@ -162,10 +173,6 @@ router.patch('/:id/accept', auth, async (req, res) => {
       { $set: { status: 'rejected' } }
     );
 
-    // Mark the post as accepted
-    post.status   = 'accepted';
-    post.acceptedBy = quote.worker.user._id;
-    await post.save();
     await post.populate([
       { path: 'resident',   select: 'name avatar phone' },
       { path: 'acceptedBy', select: 'name avatar' },
@@ -207,6 +214,11 @@ router.patch('/:id/reject', auth, async (req, res) => {
   try {
     const quote = await Quote.findById(req.params.id);
     if (!quote) return res.status(404).json({ message: 'הצעה לא נמצאה' });
+    // An accepted quote already has a booking behind it — rejecting it here
+    // would leave that booking live while the worker is told they lost.
+    if (quote.status !== 'pending') {
+      return res.status(400).json({ message: 'ניתן לדחות רק הצעות בהמתנה' });
+    }
 
     const post = await JobPost.findById(quote.jobPost);
     if (!post) return res.status(404).json({ message: 'פוסט לא נמצא' });
