@@ -1,67 +1,78 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../constants/colors';
+import { monoFont, radius } from '../../constants/theme';
+import BlueprintGrid from '../site/BlueprintGrid';
+import HazardStripe from '../site/HazardStripe';
 
-function BounceDot({ delay }: { delay: number }) {
-  const y = useRef(new Animated.Value(0)).current;
+/** Indeterminate "loading" bar that sweeps like a level bubble. */
+function SiteProgress() {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const x = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
-        Animated.delay(delay),
-        Animated.timing(y, { toValue: -7, duration: 280, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
-        Animated.timing(y, { toValue: 0,  duration: 280, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
-        Animated.delay(Math.max(0, 700 - delay)),
+        Animated.timing(x, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(x, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ])
-    ).start();
-  }, []);
-  return <Animated.View style={[styles.dot, { transform: [{ translateY: y }] }]} />;
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [x]);
+
+  const thumb = 56;
+  const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [0, Math.max(0, trackWidth - thumb)] });
+
+  return (
+    <View
+      style={styles.track}
+      onLayout={(e: LayoutChangeEvent) => setTrackWidth(e.nativeEvent.layout.width)}
+    >
+      <Animated.View style={[styles.thumb, { width: thumb, transform: [{ translateX }] }]} />
+    </View>
+  );
 }
 
 export default function SplashLoader() {
-  const pulse  = useRef(new Animated.Value(1)).current;
-  const swing  = useRef(new Animated.Value(0)).current;
+  const swing = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    // A hammer tapping a nail: quick strike, slower lift
+    const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.1, duration: 750, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1,   duration: 750, useNativeDriver: true }),
+        Animated.timing(swing, { toValue: 1, duration: 140, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+        Animated.timing(swing, { toValue: 0, duration: 380, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+        Animated.delay(420),
       ])
-    ).start();
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [swing]);
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(swing, { toValue:  1, duration: 400, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
-        Animated.timing(swing, { toValue: -1, duration: 400, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
-        Animated.timing(swing, { toValue:  0, duration: 400, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
-        Animated.delay(800),
-      ])
-    ).start();
-  }, []);
-
-  const rotate = swing.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-20deg', '0deg', '20deg'] });
+  const rotate = swing.interpolate({ inputRange: [0, 1], outputRange: ['-28deg', '6deg'] });
 
   return (
-    <View style={styles.container}>
-      {/* Decorative background blobs */}
-      <View style={styles.blob1} />
-      <View style={styles.blob2} />
+    <View style={styles.container} accessibilityLabel="טוען את הנדיל" accessibilityRole="progressbar">
+      <BlueprintGrid />
+      <HazardStripe height={14} stripe={16} style={styles.topTape} />
 
-      {/* Animated hammer icon */}
-      <Animated.View style={[styles.iconWrap, { transform: [{ scale: pulse }, { rotate }] }]}>
-        <Ionicons name="hammer" size={54} color={colors.white} />
-      </Animated.View>
+      <View style={styles.center}>
+        <View style={styles.badge}>
+          <Animated.View style={{ transform: [{ rotate }] }}>
+            <Ionicons name="hammer" size={50} color={colors.asphalt} />
+          </Animated.View>
+        </View>
 
-      <Text style={styles.brand}>הנדיל</Text>
-      <Text style={styles.tagline}>מחברים בעלי מקצוע עם דיירים</Text>
+        <Text style={styles.brand}>הנדיל</Text>
+        <Text style={styles.tagline}>מחברים בעלי מקצוע עם דיירים</Text>
 
-      {/* Bouncing dots */}
-      <View style={styles.dotsRow}>
-        <BounceDot delay={0} />
-        <BounceDot delay={160} />
-        <BounceDot delay={320} />
+        <SiteProgress />
+        <Text style={styles.status}>מכינים את אתר העבודה…</Text>
       </View>
+
+      <HazardStripe height={14} stripe={16} style={styles.bottomTape} />
     </View>
   );
 }
@@ -69,45 +80,41 @@ export default function SplashLoader() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.asphalt,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  topTape: { position: 'absolute', top: 0, left: 0, right: 0 },
+  bottomTape: { position: 'absolute', bottom: 0, left: 0, right: 0 },
+  center: { alignItems: 'center', width: 240 },
 
-  // Decorative blobs
-  blob1: {
-    position: 'absolute', top: -80, right: -80,
-    width: 260, height: 260, borderRadius: 130,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  blob2: {
-    position: 'absolute', bottom: -60, left: -60,
-    width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-
-  // Icon
-  iconWrap: {
-    width: 100, height: 100, borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+  badge: {
+    width: 104, height: 104, borderRadius: radius.lg,
+    backgroundColor: colors.hazard,
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: 28,
+    marginBottom: 26,
+    borderBottomWidth: 5, borderBottomColor: colors.hazardDark,
   },
 
   brand: {
-    fontSize: 38, fontWeight: '900', color: colors.white,
-    letterSpacing: -1, marginBottom: 8,
+    fontSize: 44, fontWeight: '900', color: colors.onAsphalt,
+    letterSpacing: -1, marginBottom: 6,
   },
   tagline: {
-    fontSize: 15, color: 'rgba(255,255,255,0.8)',
+    fontSize: 15, color: colors.onAsphaltMuted,
     textAlign: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
   },
 
-  // Dots
-  dotsRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  dot: {
-    width: 9, height: 9, borderRadius: 5,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+  track: {
+    width: '100%', height: 8, borderRadius: radius.sm,
+    backgroundColor: colors.asphaltSoft,
+    borderWidth: 1, borderColor: colors.asphaltLine,
+    overflow: 'hidden',
+  },
+  thumb: { height: '100%', backgroundColor: colors.primary, borderRadius: radius.sm },
+  status: {
+    marginTop: 12, fontSize: 11, color: colors.onAsphaltMuted,
+    fontFamily: monoFont, letterSpacing: 0.5,
   },
 });

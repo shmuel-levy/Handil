@@ -14,7 +14,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BlueprintGrid from '../../components/site/BlueprintGrid';
+import HazardStripe from '../../components/site/HazardStripe';
 import { colors } from '../../constants/colors';
+import { leadingEdge, plateEdge, radius } from '../../constants/theme';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useLoginForm } from '../../hooks/useLoginForm';
 import { AuthStackParamList } from '../../navigation/types';
@@ -68,16 +71,16 @@ export default function LoginScreen({ navigation }: Props) {
     <View style={styles.root}>
       {/* ── Orange hero section ── */}
       <View style={styles.hero}>
-        {/* Decorative animated circles */}
-        <Animated.View style={[styles.circleA, { opacity: circle1, transform: [{ scale: circle1.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] }]} />
-        <Animated.View style={[styles.circleB, { opacity: circle2, transform: [{ scale: circle2.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] }]} />
-        <Animated.View style={[styles.circleC, { opacity: circle1 }]} />
+        {/* Drafting grid fades in like plans being unrolled */}
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: circle1 }]}>
+          <BlueprintGrid />
+        </Animated.View>
 
         <SafeAreaView edges={['top']} style={styles.heroInner}>
           {/* Logo */}
           <Animated.View style={[styles.logoWrap, { transform: [{ scale: logoScale }], opacity: logoOpacity }]}>
             <View style={styles.logoCircle}>
-              <Ionicons name="hammer" size={38} color={colors.white} />
+              <Ionicons name="hammer" size={38} color={colors.asphalt} />
             </View>
           </Animated.View>
 
@@ -87,6 +90,7 @@ export default function LoginScreen({ navigation }: Props) {
             <Text style={styles.tagline}>מחברים בעלי מקצוע עם דיירים{'\n'}בכל רחבי ישראל</Text>
           </Animated.View>
         </SafeAreaView>
+        <HazardStripe height={10} stripe={14} />
       </View>
 
       {/* ── Form card slides up ── */}
@@ -101,7 +105,7 @@ export default function LoginScreen({ navigation }: Props) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.cardTitle}>ברוך הבא 👋</Text>
+            <Text style={styles.cardTitle}>כניסה לאתר</Text>
             <Text style={styles.cardSub}>הזן את הפרטים שלך להתחברות</Text>
 
             {/* Email */}
@@ -191,18 +195,20 @@ function DesktopLogin({ navigation }: Props) {
 
   return (
     <View style={styles.desktopRoot}>
-      {/* Left orange panel */}
+      {/* Asphalt panel with drafting grid */}
       <View style={styles.desktopPanel}>
+        <BlueprintGrid cell={28} />
+        <HazardStripe height={10} stripe={14} style={styles.desktopTape} />
         <View style={styles.desktopPanelInner}>
           <View style={styles.desktopLogoCircle}>
-            <Ionicons name="hammer" size={44} color={colors.white} />
+            <Ionicons name="hammer" size={44} color={colors.asphalt} />
           </View>
           <Text style={styles.desktopBrandName}>הנדיל</Text>
           <Text style={styles.desktopTagline}>מחברים בעלי מקצוע{'\n'}עם דיירים בישראל</Text>
           <View style={styles.desktopBullets}>
             {['דירוגים אמיתיים מלקוחות', 'מחירים שקופים מראש', 'מצא מקצוען בקרבתך'].map((b) => (
               <View key={b} style={styles.desktopBulletRow}>
-                <View style={styles.desktopBulletDot} />
+                <Ionicons name="checkbox" size={16} color={colors.hazard} />
                 <Text style={styles.desktopBulletText}>{b}</Text>
               </View>
             ))}
@@ -250,12 +256,12 @@ function DesktopLogin({ navigation }: Props) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0F172A' },
+  root: { flex: 1, backgroundColor: colors.asphalt },
 
   // ── Hero
   hero: {
     height: SCREEN_H * 0.40,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.asphalt,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -263,56 +269,30 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     paddingTop: 8,
   },
-  // Decorative circles
-  circleA: {
-    position: 'absolute', width: 280, height: 280, borderRadius: 140,
-    backgroundColor: 'rgba(249,115,22,0.12)',
-    top: -90, right: -70,
-  },
-  circleB: {
-    position: 'absolute', width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(249,115,22,0.08)',
-    bottom: -50, left: -40,
-  },
-  circleC: {
-    position: 'absolute', width: 110, height: 110, borderRadius: 55,
-    backgroundColor: 'rgba(249,115,22,0.15)',
-    top: 20, left: 30,
-  },
   logoWrap: { marginBottom: 16 },
   logoCircle: {
-    width: 84, height: 84, borderRadius: 26,
-    backgroundColor: colors.primary,
-    borderWidth: 2, borderColor: 'rgba(249,115,22,0.5)',
+    width: 84, height: 84, borderRadius: radius.lg,
+    backgroundColor: colors.hazard,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5, shadowRadius: 20, elevation: 10,
+    ...plateEdge(colors.hazardDark, 5),
   },
   brandName: {
-    fontSize: 38, fontWeight: '900', color: '#fff',
-    letterSpacing: -0.5, marginBottom: 8,
+    fontSize: 40, fontWeight: '900', color: colors.onAsphalt,
+    letterSpacing: -0.5, marginBottom: 6,
   },
   tagline: {
-    fontSize: 14, color: 'rgba(255,255,255,0.78)',
+    fontSize: 14, color: colors.onAsphaltMuted,
     textAlign: 'center', lineHeight: 22,
   },
 
   // ── Form card
   cardWrap: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    marginTop: -24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 10,
+    backgroundColor: colors.background,
   },
   cardScroll: {
     paddingHorizontal: 28,
-    paddingTop: 32,
+    paddingTop: 30,
     paddingBottom: 40,
   },
   cardTitle: {
@@ -321,17 +301,17 @@ const styles = StyleSheet.create({
   },
   cardSub: {
     fontSize: 14, color: colors.textMuted,
-    textAlign: 'right', marginBottom: 28, lineHeight: 22,
+    textAlign: 'right', marginBottom: 26, lineHeight: 22,
   },
 
   // ── Inputs
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: radius.md,
     paddingHorizontal: 14,
     marginBottom: 12,
     gap: 10,
@@ -339,7 +319,7 @@ const styles = StyleSheet.create({
   inputIcon: { padding: 2 },
   input: {
     flex: 1,
-    paddingVertical: 15,
+    paddingVertical: 14,
     fontSize: 15,
     color: colors.textPrimary,
   },
@@ -348,8 +328,9 @@ const styles = StyleSheet.create({
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: colors.errorLight,
-    padding: 12, borderRadius: 12, marginBottom: 16,
-    borderWidth: 1, borderColor: colors.error + '30',
+    padding: 12, borderRadius: radius.md, marginBottom: 16,
+    borderWidth: 1, borderColor: colors.error + '40',
+    ...leadingEdge(colors.error, 4),
   },
   errorText: { color: colors.error, fontSize: 13, flex: 1, textAlign: 'right' },
 
@@ -357,14 +338,12 @@ const styles = StyleSheet.create({
   loginBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: colors.primary,
-    paddingVertical: 17, borderRadius: 18,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
+    paddingVertical: 15, borderRadius: radius.md,
+    ...plateEdge(colors.primaryDark, 4),
     marginTop: 8,
   },
   loginBtnDisabled: { opacity: 0.65 },
-  loginBtnText: { color: colors.white, fontSize: 17, fontWeight: '800' },
+  loginBtnText: { color: colors.white, fontSize: 17, fontWeight: '900' },
 
   // ── Divider
   divider: {
@@ -376,38 +355,38 @@ const styles = StyleSheet.create({
 
   // ── Register button
   registerBtn: {
-    borderWidth: 2, borderColor: colors.primary + '60',
-    paddingVertical: 15, borderRadius: 18, alignItems: 'center',
-    backgroundColor: colors.primaryLight,
+    borderWidth: 2, borderColor: colors.asphalt,
+    paddingVertical: 13, borderRadius: radius.md, alignItems: 'center',
+    backgroundColor: colors.surface,
+    ...plateEdge(colors.asphalt, 4),
   },
-  registerBtnText: { fontSize: 15, fontWeight: '700', color: colors.primary },
+  registerBtnText: { fontSize: 15, fontWeight: '900', color: colors.asphalt },
 
   // ── Desktop
   desktopRoot: { flex: 1, flexDirection: 'row' },
   desktopPanel: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.asphalt,
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
+  desktopTape: { position: 'absolute', bottom: 0, left: 0, right: 0 },
   desktopPanelInner: { alignItems: 'center', paddingHorizontal: 48 },
   desktopLogoCircle: {
-    width: 100, height: 100, borderRadius: 30,
-    backgroundColor: colors.primary,
+    width: 100, height: 100, borderRadius: radius.lg,
+    backgroundColor: colors.hazard,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 24,
-    borderWidth: 2, borderColor: 'rgba(249,115,22,0.5)',
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5, shadowRadius: 20, elevation: 10,
+    ...plateEdge(colors.hazardDark, 6),
   },
-  desktopBrandName: { fontSize: 48, fontWeight: '900', color: '#fff', marginBottom: 12 },
+  desktopBrandName: { fontSize: 52, fontWeight: '900', color: colors.onAsphalt, marginBottom: 12 },
   desktopTagline: {
-    fontSize: 18, color: 'rgba(255,255,255,0.8)',
+    fontSize: 18, color: colors.onAsphaltMuted,
     textAlign: 'center', lineHeight: 28, marginBottom: 40,
   },
-  desktopBullets: { gap: 12 },
+  desktopBullets: { gap: 14 },
   desktopBulletRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  desktopBulletDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.7)' },
-  desktopBulletText: { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
+  desktopBulletText: { fontSize: 15, color: colors.onAsphalt, fontWeight: '600' },
   desktopForm: {
     flex: 1, backgroundColor: colors.background,
     alignItems: 'center', justifyContent: 'center',

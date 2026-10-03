@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { colors } from './colors';
 
 /**
@@ -18,13 +19,43 @@ export const spacing = {
   xxxl: 32,
 } as const;
 
+/** Tight, machined corners — construction gear is boxy, not bubbly. */
 export const radius = {
-  sm:   8,
-  md:   12,
-  lg:   16,
-  xl:   20,
+  sm:   4,
+  md:   6,
+  lg:   8,
+  xl:   12,
   pill: 999,
 } as const;
+
+/** Monospace for work-order numbers, prices and measurements. */
+export const monoFont = Platform.select({
+  ios: 'Menlo',
+  android: 'monospace',
+  default: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+});
+
+/**
+ * Thick accent on the reading-start edge (the right, in Hebrew).
+ *
+ * Native forces RTL, so `borderStart*` already means right there. React
+ * Native Web resolves `borderStart*` as if the page were LTR even though the
+ * document is `dir="rtl"`, which put the accent on the left — so web gets an
+ * explicit right border instead.
+ */
+export function leadingEdge(color: string, width = 5) {
+  return Platform.OS === 'web'
+    ? ({ borderRightWidth: width, borderRightColor: color } as const)
+    : ({ borderStartWidth: width, borderStartColor: color } as const);
+}
+
+/**
+ * A solid darker bottom edge instead of a soft drop shadow. It reads like a
+ * stamped steel plate and renders identically on iOS, Android and web.
+ */
+export function plateEdge(color: string, width = 3) {
+  return { borderBottomWidth: width, borderBottomColor: color } as const;
+}
 
 export const fontSize = {
   caption: 11,

@@ -13,7 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import HazardStripe from '../../components/site/HazardStripe';
 import { colors } from '../../constants/colors';
 import { ChatStackParamList } from '../../navigation/types';
 import { getMessages, sendMessageRest } from '../../services/chatApi';
@@ -29,6 +30,7 @@ export default function ChatScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText]         = useState('');
@@ -148,11 +150,18 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    // The dark header pads the top inset itself so the bottom inset (under the
+    // input bar) keeps the light background
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-forward" size={22} color={colors.textPrimary} />
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={22} color={colors.hazard} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={styles.headerAvatar}>
@@ -162,13 +171,14 @@ export default function ChatScreen() {
             <Text style={styles.headerName}>{params.otherUserName}</Text>
             {params.jobPostTitle && (
               <Text style={styles.headerSub} numberOfLines={1}>
-                <Ionicons name="briefcase-outline" size={10} color={colors.textMuted} />
+                <Ionicons name="briefcase-outline" size={10} color={colors.onAsphaltMuted} />
                 {' '}{params.jobPostTitle}
               </Text>
             )}
           </View>
         </View>
       </View>
+      <HazardStripe height={5} stripe={8} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -269,18 +279,18 @@ const styles = StyleSheet.create({
   // Header
   header: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderColor: colors.border, gap: 12,
+    backgroundColor: colors.asphalt, paddingHorizontal: 16, paddingBottom: 12,
+    gap: 12,
   },
   backBtn: { padding: 4 },
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerAvatar: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    width: 38, height: 38, borderRadius: 6,
+    backgroundColor: colors.hazard, alignItems: 'center', justifyContent: 'center',
   },
-  headerAvatarText: { fontSize: 15, fontWeight: '800', color: colors.white },
-  headerName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, textAlign: 'right' },
-  headerSub: { fontSize: 11, color: colors.textMuted },
+  headerAvatarText: { fontSize: 15, fontWeight: '900', color: colors.asphalt },
+  headerName: { fontSize: 16, fontWeight: '800', color: colors.onAsphalt, textAlign: 'right' },
+  headerSub: { fontSize: 11, color: colors.onAsphaltMuted },
 
   // Messages
   msgList: { paddingHorizontal: 12, paddingVertical: 16, gap: 4 },

@@ -120,7 +120,7 @@ export default function AppRoot() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  desktopBg: { backgroundColor: '#DDE1EA' },
+  desktopBg: { backgroundColor: colors.asphalt },
   desktopFrame: {
     flex: 1,
     maxWidth: 1440,

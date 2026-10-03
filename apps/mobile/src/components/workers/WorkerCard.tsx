@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { colors } from '../../constants/colors';
+import { leadingEdge, monoFont, plateEdge, radius } from '../../constants/theme';
 import { getCategoryBySlug } from '../../constants/categories';
 import { WorkerProfile } from '../../types';
 import StarRating from './StarRating';
@@ -61,7 +62,7 @@ export default function WorkerCard({ worker, onPress, style }: Props) {
         {/* Category */}
         {category && (
           <View style={styles.catBadge}>
-            <Ionicons name={category.icon as any} size={11} color={colors.primary} />
+            <Ionicons name={category.icon as any} size={11} color={colors.hazardInk} />
             <Text style={styles.catBadgeText}>{category.name_he}</Text>
           </View>
         )}
@@ -75,9 +76,9 @@ export default function WorkerCard({ worker, onPress, style }: Props) {
             <Text style={styles.metaText}>{worker.city}</Text>
           </View>
           {worker.hourlyRate ? (
-            <View style={styles.metaItem}>
-              <Ionicons name="cash-outline" size={11} color={colors.textMuted} />
-              <Text style={styles.metaText}>{worker.hourlyRate}₪/שעה</Text>
+            <View style={styles.rateTag}>
+              <Text style={styles.rateText}>₪{worker.hourlyRate}</Text>
+              <Text style={styles.rateUnit}>/שעה</Text>
             </View>
           ) : null}
           {worker.yearsExperience > 0 && (
@@ -111,54 +112,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    // Orange edge strip on the leading side, like the painted edge of a ladder
+    ...leadingEdge(colors.primary, 5),
+    ...plateEdge(colors.border, 3),
   },
   left: { position: 'relative', marginEnd: 14 },
+  // Square "site ID badge" rather than a round social-app avatar
   avatar: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: colors.primary,
+    width: 52, height: 52, borderRadius: radius.md,
+    backgroundColor: colors.asphalt,
     alignItems: 'center', justifyContent: 'center',
+    borderBottomWidth: 3, borderBottomColor: colors.hazard,
   },
-  avatarText: { fontSize: 20, fontWeight: '800', color: colors.white },
+  avatarText: { fontSize: 22, fontWeight: '900', color: colors.hazard },
   availableDot: {
-    position: 'absolute', bottom: 1, end: 1,
-    width: 13, height: 13, borderRadius: 7,
+    position: 'absolute', top: -3, end: -3,
+    width: 14, height: 14, borderRadius: 7,
     backgroundColor: colors.success,
     borderWidth: 2, borderColor: colors.surface,
   },
   body: { flex: 1 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  name: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, flex: 1, textAlign: 'right' },
+  name: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, flex: 1, textAlign: 'right' },
   verifiedPill: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: colors.successLight,
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm,
   },
-  verifiedText: { fontSize: 10, fontWeight: '700', color: colors.success },
+  verifiedText: { fontSize: 10, fontWeight: '800', color: colors.success },
   catBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+    backgroundColor: colors.hazardLight,
+    borderWidth: 1, borderColor: colors.hazard,
+    paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.sm,
     alignSelf: 'flex-start', marginBottom: 5,
   },
-  catBadgeText: { fontSize: 11, fontWeight: '700', color: colors.primary },
-  meta: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 5, gap: 8 },
+  catBadgeText: { fontSize: 11, fontWeight: '800', color: colors.hazardInk },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginTop: 6, gap: 8 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   metaText: { fontSize: 11, color: colors.textMuted },
-  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 },
+  rateTag: {
+    flexDirection: 'row', alignItems: 'baseline',
+    backgroundColor: colors.asphalt,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm,
+  },
+  rateText: { fontFamily: monoFont, fontSize: 12, fontWeight: '700', color: colors.hazard },
+  rateUnit: { fontSize: 10, color: colors.onAsphaltMuted, marginStart: 1 },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
   badge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: colors.borderLight,
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+    backgroundColor: colors.background,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm,
     borderWidth: 1, borderColor: colors.border,
   },
   badgeText: { fontSize: 10, color: colors.textMuted, fontWeight: '600' },

@@ -7,6 +7,7 @@ import {
   TouchableOpacityProps,
 } from 'react-native';
 import { colors } from '../../constants/colors';
+import { MIN_TOUCH_TARGET, plateEdge, radius } from '../../constants/theme';
 
 interface Props extends TouchableOpacityProps {
   title: string;
@@ -45,7 +46,7 @@ export default function Button({
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? colors.white : colors.primary} size="small" />
+        <ActivityIndicator color={variant === 'primary' ? colors.white : colors.asphalt} size="small" />
       ) : (
         <Text style={[styles.label, styles[`label_${variant}`], styles[`labelSize_${size}`]]}>
           {title}
@@ -59,27 +60,31 @@ const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: radius.md,
     flexDirection: 'row',
+    minHeight: MIN_TOUCH_TARGET,
   },
+  // Solid bottom edge instead of a soft shadow: a pressed-steel control
   primary: {
     backgroundColor: colors.primary,
+    ...plateEdge(colors.primaryDark),
   },
   outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: colors.primary,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.asphalt,
+    ...plateEdge(colors.asphalt, 3),
   },
   ghost: {
     backgroundColor: 'transparent',
   },
   size_sm: { paddingHorizontal: 16, paddingVertical: 8 },
-  size_md: { paddingHorizontal: 20, paddingVertical: 13 },
-  size_lg: { paddingHorizontal: 24, paddingVertical: 16 },
+  size_md: { paddingHorizontal: 20, paddingVertical: 12 },
+  size_lg: { paddingHorizontal: 24, paddingVertical: 15 },
   disabled: { opacity: 0.5 },
-  label: { fontWeight: '600' },
+  label: { fontWeight: '800', letterSpacing: 0.2 },
   label_primary: { color: colors.white },
-  label_outline: { color: colors.primary },
+  label_outline: { color: colors.asphalt },
   label_ghost: { color: colors.primary },
   labelSize_sm: { fontSize: 13 },
   labelSize_md: { fontSize: 15 },

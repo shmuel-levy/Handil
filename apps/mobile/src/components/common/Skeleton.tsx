@@ -59,7 +59,7 @@ export function SkeletonBlock({
 export function WorkerCardSkeleton() {
   return (
     <View style={styles.card}>
-      <SkeletonBlock width={52} height={52} round style={{ marginEnd: spacing.md }} />
+      <SkeletonBlock width={52} height={52} style={{ marginEnd: spacing.md }} />
       <View style={{ flex: 1, gap: spacing.sm }}>
         <SkeletonBlock width="55%" height={14} />
         <SkeletonBlock width="35%" height={11} />

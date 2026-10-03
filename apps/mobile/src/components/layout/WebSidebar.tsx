@@ -3,14 +3,17 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../constants/colors';
+import { radius } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
+import BlueprintGrid from '../site/BlueprintGrid';
+import HazardStripe from '../site/HazardStripe';
 
 const SIDEBAR_WIDTH = 256;
 
 const ROUTE_META: Record<string, { icon: string; activeIcon: string; label: string }> = {
   HomeTab:     { icon: 'home-outline',          activeIcon: 'home',           label: 'בית' },
   SearchTab:   { icon: 'search-outline',        activeIcon: 'search',         label: 'חיפוש' },
-  PostsTab:    { icon: 'newspaper-outline',     activeIcon: 'newspaper',      label: 'עבודות' },
+  PostsTab:    { icon: 'clipboard-outline',     activeIcon: 'clipboard',      label: 'עבודות' },
   BookingsTab: { icon: 'calendar-outline',      activeIcon: 'calendar',       label: 'הזמנות' },
   ChatTab:     { icon: 'chatbubbles-outline',   activeIcon: 'chatbubbles',    label: 'הודעות' },
   ProfileTab:  { icon: 'person-outline',        activeIcon: 'person',         label: 'פרופיל' },
@@ -25,10 +28,13 @@ export default function WebSidebar({ state, navigation }: BottomTabBarProps) {
   return (
     // position: 'fixed' is a CSS prop that React Native Web passes through
     <View style={styles.sidebar as any}>
+      <BlueprintGrid cell={22} />
+      <HazardStripe height={6} stripe={9} />
+
       {/* Branding */}
       <View style={styles.brand}>
         <View style={styles.logoMark}>
-          <Text style={styles.logoMarkText}>H</Text>
+          <Ionicons name="construct" size={22} color={colors.asphalt} />
         </View>
         <View>
           <Text style={styles.logoName}>הנדיל</Text>
@@ -48,18 +54,18 @@ export default function WebSidebar({ state, navigation }: BottomTabBarProps) {
               style={[styles.navItem, focused && styles.navItemActive]}
               onPress={() => navigation.navigate(route.name)}
               activeOpacity={0.8}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: focused }}
+              accessibilityLabel={meta.label}
             >
-              <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-                <Ionicons
-                  name={(focused ? meta.activeIcon : meta.icon) as any}
-                  size={18}
-                  color={focused ? colors.white : colors.textMuted}
-                />
-              </View>
+              <Ionicons
+                name={(focused ? meta.activeIcon : meta.icon) as any}
+                size={19}
+                color={focused ? colors.asphalt : colors.onAsphaltMuted}
+              />
               <Text style={[styles.navLabel, focused && styles.navLabelActive]}>
                 {meta.label}
               </Text>
-              {focused && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
           );
         })}
@@ -75,8 +81,13 @@ export default function WebSidebar({ state, navigation }: BottomTabBarProps) {
             <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
             <Text style={styles.userRole}>{user.role === 'worker' ? 'בעל מקצוע' : 'לקוח'}</Text>
           </View>
-          <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-            <Ionicons name="log-out-outline" size={18} color={colors.textMuted} />
+          <TouchableOpacity
+            onPress={logout}
+            style={styles.logoutBtn}
+            accessibilityRole="button"
+            accessibilityLabel="התנתקות"
+          >
+            <Ionicons name="log-out-outline" size={18} color={colors.onAsphaltMuted} />
           </TouchableOpacity>
         </View>
       )}
@@ -93,92 +104,71 @@ const styles = StyleSheet.create({
     end: 0,              // logical: right in LTR, left in RTL — but for desktop sidebar we always want right
     right: 0,
     width: SIDEBAR_WIDTH,
-    backgroundColor: colors.surface,
-    borderLeftWidth: 1,
-    borderColor: colors.border,
-    paddingTop: 28,
+    backgroundColor: colors.asphalt,
     paddingBottom: 20,
-    paddingHorizontal: 14,
     zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    overflow: 'hidden',
   } as any,
   brand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 8,
-    marginBottom: 28,
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    marginBottom: 24,
   },
   logoMark: {
     width: 42,
     height: 42,
-    borderRadius: 13,
-    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    backgroundColor: colors.hazard,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.hazardDark,
   },
-  logoMarkText: { fontSize: 22, fontWeight: '900', color: colors.white },
-  logoName: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
-  logoSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
-  nav: { flex: 1 },
+  logoName: { fontSize: 20, fontWeight: '900', color: colors.onAsphalt },
+  logoSub: { fontSize: 11, color: colors.onAsphaltMuted, marginTop: 1 },
+  nav: { flex: 1, paddingHorizontal: 14 },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginBottom: 3,
-    position: 'relative',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: radius.md,
+    marginBottom: 4,
   },
-  navItemActive: { backgroundColor: colors.primaryLight },
-  iconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
+  navItemActive: {
+    backgroundColor: colors.hazard,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.hazardDark,
   },
-  iconWrapActive: { backgroundColor: colors.primary },
-  navLabel: { fontSize: 14, fontWeight: '500', color: colors.textMuted, flex: 1, textAlign: 'right' },
-  navLabelActive: { color: colors.primary, fontWeight: '700' },
-  activeIndicator: {
-    position: 'absolute',
-    end: 0,
-    top: '25%' as any,
-    bottom: '25%' as any,
-    width: 3,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
+  navLabel: { fontSize: 14, fontWeight: '600', color: colors.onAsphaltMuted, flex: 1, textAlign: 'right' },
+  navLabelActive: { color: colors.asphalt, fontWeight: '900' },
   userSection: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    marginHorizontal: 14,
     paddingHorizontal: 8,
     paddingTop: 16,
     marginTop: 8,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.asphaltLine,
   },
   userAvatar: {
     width: 38,
     height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.primaryLight,
+    borderRadius: radius.md,
+    backgroundColor: colors.asphaltSoft,
+    borderWidth: 1,
+    borderColor: colors.asphaltLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  userAvatarText: { fontSize: 16, fontWeight: '700', color: colors.primary },
-  userName: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
-  userRole: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
-  logoutBtn: { padding: 6 },
+  userAvatarText: { fontSize: 16, fontWeight: '800', color: colors.hazard },
+  userName: { fontSize: 13, fontWeight: '700', color: colors.onAsphalt },
+  userRole: { fontSize: 11, color: colors.onAsphaltMuted, marginTop: 1 },
+  logoutBtn: { padding: 8 },
 });

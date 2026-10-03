@@ -3,7 +3,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Animated,
   Linking,
   Modal,
@@ -14,9 +13,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SkeletonList } from '../../components/common/Skeleton';
+import BlueprintGrid from '../../components/site/BlueprintGrid';
+import HazardStripe from '../../components/site/HazardStripe';
+import SectionHeader from '../../components/site/SectionHeader';
 import WorkerCard from '../../components/workers/WorkerCard';
 import { CATEGORIES } from '../../constants/categories';
 import { colors } from '../../constants/colors';
+import { monoFont, plateEdge, radius } from '../../constants/theme';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { HomeStackParamList } from '../../navigation/types';
 import { getWorkers } from '../../services/workersApi';
@@ -41,6 +45,13 @@ type InfoTopicId = (typeof INFO_TOPICS)[number];
 function isInfoTopic(id: string): id is InfoTopicId {
   return (INFO_TOPICS as readonly string[]).includes(id);
 }
+
+/** The three promises, shown as spec lines on the hero. */
+const SPECS = [
+  { icon: 'star', label: 'דירוגים אמיתיים' },
+  { icon: 'pricetag', label: 'מחיר שקוף מראש' },
+  { icon: 'flash', label: 'מענה מהיר' },
+] as const;
 
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
@@ -78,194 +89,175 @@ export default function HomeScreen() {
   const firstName = user?.name?.split(' ')[0] ?? '';
   const isWorker = user?.role === 'worker';
   const tabNav = navigation.getParent<any>();
+  const openAll = () => navigation.navigate('WorkerList', { category: '', categoryName: 'כל בעלי המקצוע' });
+  const gutter = isDesktop ? styles.gutterDesktop : styles.gutter;
 
   return (
     <SafeAreaView style={styles.safe} edges={isDesktop ? [] : ['top']}>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* ── Desktop hero bar ── */}
-        {isDesktop ? (
-          <View style={styles.desktopHero}>
-            <View>
-              <Text style={styles.desktopHeroTitle}>שלום, {firstName} 👋</Text>
-              <View style={styles.locationRow}>
-                <Ionicons name="location" size={13} color={colors.primary} />
-                <Text style={styles.location}>{user?.city || 'תל אביב'}</Text>
-              </View>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <TouchableOpacity
-                style={styles.desktopSearchBar}
-                onPress={() => navigation.navigate('WorkerList', { category: '', categoryName: 'כל בעלי המקצוע' })}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="search" size={16} color={colors.textMuted} />
-                <Text style={styles.searchPlaceholder}>חפשו: חשמלאי, אינסטלטור…</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.desktopMenuBtn} onPress={openMenu} activeOpacity={0.75}>
-                <Ionicons name="menu" size={22} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          /* ── Mobile hero — orange immersive ── */
-          <View style={styles.heroMobile}>
+        {/* ── Hero: asphalt + blueprint grid, finished with hazard tape ── */}
+        <View style={styles.hero}>
+          <BlueprintGrid />
+          <View style={[styles.heroInner, isDesktop && styles.heroInnerDesktop]}>
             <View style={styles.heroTopRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.heroGreeting}>שלום, {firstName} 👋</Text>
-                <Text style={styles.heroTagline}>מה צריך לתקן היום?</Text>
+                <View style={styles.siteLabel}>
+                  <Ionicons name="location" size={11} color={colors.asphalt} />
+                  <Text style={styles.siteLabelText}>{user?.city || 'תל אביב'}</Text>
+                </View>
+                <Text style={styles.heroGreeting}>שלום, {firstName}</Text>
+                <Text style={styles.heroTagline}>
+                  {isWorker ? 'מה עולה היום על הפיגום?' : 'מה צריך לתקן היום?'}
+                </Text>
               </View>
-              <TouchableOpacity style={styles.heroBrand} onPress={openMenu} activeOpacity={0.75}>
-                <Ionicons name="menu" size={24} color="#fff" />
+              <TouchableOpacity
+                style={styles.menuBtn}
+                onPress={openMenu}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="תפריט"
+              >
+                <Ionicons name="menu" size={24} color={colors.onAsphalt} />
               </TouchableOpacity>
             </View>
-            <View style={styles.heroLocationRow}>
-              <Ionicons name="location" size={12} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.heroLocation}>{user?.city || 'תל אביב'}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.heroSearch}
-              onPress={() => navigation.navigate('WorkerList', { category: '', categoryName: 'כל בעלי המקצוע' })}
-              activeOpacity={0.95}
-            >
-              <Ionicons name="search" size={18} color={colors.textMuted} />
-              <Text style={styles.heroSearchText}>חפשו: חשמלאי, אינסטלטור…</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
-        {/* ── Categories ── */}
-        <View style={[styles.sectionHeader, isDesktop && styles.sectionHeaderDesktop]}>
-          <Text style={styles.sectionTitle}>קטגוריות</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('WorkerList', { category: '', categoryName: 'כל בעלי המקצוע' })}>
-            <Text style={styles.sectionLink}>הכל</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.heroSearch, isDesktop && styles.heroSearchDesktop]}
+              onPress={openAll}
+              activeOpacity={0.95}
+              accessibilityRole="search"
+              accessibilityLabel="חיפוש בעל מקצוע"
+            >
+              <Text style={styles.heroSearchText}>חפשו: חשמלאי, אינסטלטור, צבעי…</Text>
+              <View style={styles.heroSearchBtn}>
+                <Ionicons name="search" size={18} color={colors.white} />
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.specRow}>
+              {SPECS.map((s) => (
+                <View key={s.label} style={styles.spec}>
+                  <Ionicons name={s.icon} size={12} color={colors.hazard} />
+                  <Text style={styles.specText}>{s.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <HazardStripe height={10} stripe={14} />
         </View>
 
+        {/* ── Categories as toolbox tiles ── */}
+        <SectionHeader
+          title="ארגז הכלים"
+          actionLabel="הכל"
+          onAction={openAll}
+          style={{ ...gutter, marginTop: 26, marginBottom: 14 }}
+        />
+
         {isDesktop ? (
-          /* Desktop: wrapping pill row — no fixed minWidth so long names fit */
-          <View style={styles.categoriesDesktop}>
+          <View style={[styles.tileGrid, gutter]}>
             {CATEGORIES.map((cat) => (
               <TouchableOpacity
                 key={cat.slug}
-                style={styles.categoryPillDesktop}
+                style={styles.tileDesktop}
                 onPress={() => navigation.navigate('WorkerList', { category: cat.slug, categoryName: cat.name_he })}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={cat.name_he}
               >
-                <View style={styles.categoryIconDesktop}>
-                  <Ionicons name={cat.icon as any} size={18} color={colors.primary} />
+                <View style={styles.tileIcon}>
+                  <Ionicons name={cat.icon as any} size={20} color={colors.asphalt} />
                 </View>
-                <Text style={styles.categoryNameDesktop}>{cat.name_he}</Text>
+                <Text style={styles.tileNameDesktop} numberOfLines={1}>{cat.name_he}</Text>
               </TouchableOpacity>
             ))}
           </View>
         ) : (
-          /* Mobile: horizontal scroll — no fixed width so text doesn't overflow */
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tileRow}>
             {CATEGORIES.map((cat) => (
               <TouchableOpacity
                 key={cat.slug}
-                style={styles.categoryPill}
+                style={styles.tile}
                 onPress={() => navigation.navigate('WorkerList', { category: cat.slug, categoryName: cat.name_he })}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={cat.name_he}
               >
-                <View style={styles.categoryIcon}>
-                  <Ionicons name={cat.icon as any} size={22} color={colors.primary} />
+                <View style={styles.tileIcon}>
+                  <Ionicons name={cat.icon as any} size={24} color={colors.asphalt} />
                 </View>
-                <Text style={styles.categoryName}>{cat.name_he}</Text>
+                <Text style={styles.tileName} numberOfLines={2}>{cat.name_he}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         )}
 
-        {/* ── Job post action card ── */}
-        <View style={[styles.actionRow, isDesktop && styles.actionRowDesktop]}>
-          {isWorker ? (
-            <TouchableOpacity
-              style={[styles.jobCard, isDesktop && styles.jobCardDesktop]}
-              onPress={() => tabNav?.navigate('PostsTab')}
-              activeOpacity={0.85}
-            >
-              <View style={styles.jobCardIcon}>
-                <Ionicons name="newspaper-outline" size={22} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.jobCardTitle}>עבודות פתוחות</Text>
-                <Text style={styles.jobCardSub}>לקוחות מחפשים בעלי מקצוע עכשיו</Text>
-              </View>
-              <Ionicons name="chevron-back" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.jobCard, styles.jobCardResident, isDesktop && styles.jobCardDesktop]}
-              onPress={() => tabNav?.navigate('PostsTab')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.jobCardIcon, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="create-outline" size={22} color="#92400E" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.jobCardTitle, { color: '#92400E' }]}>פרסם עבודה</Text>
-                <Text style={styles.jobCardSub}>תאר מה אתה צריך ובעלי מקצוע יפנו אליך</Text>
-              </View>
-              <Ionicons name="chevron-back" size={16} color="#92400E" />
-            </TouchableOpacity>
-          )}
-
-          {/* Desktop: banner inline with job card */}
-          {isDesktop && (
-            <TouchableOpacity
-              style={[styles.banner, styles.bannerDesktop]}
-              onPress={() => navigation.navigate('WorkerList', { category: '', categoryName: 'כל בעלי המקצוע' })}
-              activeOpacity={0.9}
-            >
-              <View style={styles.bannerBadge}>
-                <Ionicons name="shield-checkmark" size={11} color={colors.white} />
-                <Text style={styles.bannerBadgeText}>בעלי מקצוע מאומתים</Text>
-              </View>
-              <Text style={styles.bannerTitle}>מצאו מקצוענים{'\n'}לכל עבודה בבית</Text>
-              <Text style={styles.bannerSub}>דירוגים אמיתיים · מחירים שקופים</Text>
-              <View style={styles.bannerCta}>
-                <Text style={styles.bannerCtaText}>לחיפוש</Text>
-                <Ionicons name="arrow-back" size={13} color={colors.primary} />
-              </View>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Mobile-only banner ── */}
-        {!isDesktop && (
-          <View style={styles.banner}>
-            <View style={styles.bannerBadge}>
-              <Ionicons name="shield-checkmark" size={11} color={colors.white} />
-              <Text style={styles.bannerBadgeText}>בעלי מקצוע מאומתים</Text>
+        {/* ── Work order card + promo ── */}
+        <View style={[styles.actionRow, gutter, isDesktop && styles.actionRowDesktop]}>
+          <TouchableOpacity
+            style={[styles.orderCard, isDesktop && { flex: 1 }]}
+            onPress={() => tabNav?.navigate('PostsTab')}
+            activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel={isWorker ? 'עבודות פתוחות' : 'פרסם עבודה'}
+          >
+            <View style={styles.orderHead}>
+              <Text style={styles.orderHeadText}>{isWorker ? 'לוח עבודות' : 'הזמנת עבודה חדשה'}</Text>
+              <Text style={styles.orderHeadNo}>{isWorker ? 'LIVE' : 'WO-NEW'}</Text>
             </View>
-            <Text style={styles.bannerTitle}>מצאו מקצוענים{'\n'}לכל עבודה בבית</Text>
-            <Text style={styles.bannerSub}>דירוגים אמיתיים · מחירים שקופים</Text>
-            <TouchableOpacity
-              style={styles.bannerCta}
-              onPress={() => navigation.navigate('WorkerList', { category: '', categoryName: 'כל בעלי המקצוע' })}
-            >
-              <Text style={styles.bannerCtaText}>לחיפוש</Text>
-              <Ionicons name="arrow-back" size={13} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        )}
+            <View style={styles.orderBody}>
+              <View style={styles.orderIcon}>
+                <Ionicons
+                  name={isWorker ? 'clipboard' : 'create'}
+                  size={22}
+                  color={colors.white}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.orderTitle}>{isWorker ? 'עבודות פתוחות' : 'פרסם עבודה'}</Text>
+                <Text style={styles.orderSub}>
+                  {isWorker ? 'לקוחות מחפשים בעלי מקצוע עכשיו' : 'תאר מה צריך — בעלי מקצוע ישלחו הצעות מחיר'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-back" size={18} color={colors.primary} />
+            </View>
+          </TouchableOpacity>
 
-        {/* ── Top Workers ── */}
-        <View style={[styles.sectionHeader, isDesktop && styles.sectionHeaderDesktop]}>
-          <Text style={styles.sectionTitle}>בעלי מקצוע מובילים</Text>
+          <TouchableOpacity
+            style={[styles.promo, isDesktop && { flex: 1 }]}
+            onPress={openAll}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="מצאו מקצוענים לכל עבודה בבית"
+          >
+            <HazardStripe height={8} stripe={10} />
+            <View style={styles.promoInner}>
+              <View style={styles.promoBadge}>
+                <Ionicons name="shield-checkmark" size={11} color={colors.hazard} />
+                <Text style={styles.promoBadgeText}>בעלי מקצוע עם דירוג אמיתי</Text>
+              </View>
+              <Text style={styles.promoTitle}>מצאו מקצוען{'\n'}לכל עבודה בבית</Text>
+              <View style={styles.promoCta}>
+                <Text style={styles.promoCtaText}>לחיפוש</Text>
+                <Ionicons name="arrow-back" size={14} color={colors.hazard} />
+              </View>
+            </View>
+          </TouchableOpacity>
         </View>
+
+        {/* ── Top workers ── */}
+        <SectionHeader title="המקצוענים המובילים" style={{ ...gutter, marginBottom: 14 }} />
 
         {loading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
+          <SkeletonList count={3} variant="worker" />
         ) : topWorkers.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Ionicons name="people-outline" size={40} color={colors.textDisabled} />
+            <Ionicons name="construct-outline" size={40} color={colors.textDisabled} />
             <Text style={styles.emptyText}>עדיין אין בעלי מקצוע רשומים</Text>
           </View>
         ) : (
-          <View style={isDesktop ? styles.workerGrid : styles.workerList}>
+          <View style={isDesktop ? [styles.workerGrid, gutter] : gutter}>
             {topWorkers.map((w) => (
               <WorkerCard
                 key={w._id}
@@ -277,10 +269,10 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <View style={{ height: 24 }} />
+        <View style={{ height: 28 }} />
       </ScrollView>
 
-      {/* ── Hamburger side menu (animated slide-in from right) ── */}
+      {/* ── Side menu (slides in from the right) ── */}
       <Modal
         visible={menuVisible}
         transparent
@@ -288,26 +280,31 @@ export default function HomeScreen() {
         onRequestClose={closeMenu}
       >
         <View style={{ flex: 1 }}>
-          {/* Animated backdrop */}
-          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', opacity: backdropAnim }]}>
-            <TouchableOpacity style={{ flex: 1 }} onPress={closeMenu} activeOpacity={1} />
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', opacity: backdropAnim }]}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={closeMenu} activeOpacity={1} accessibilityLabel="סגירת התפריט" />
           </Animated.View>
 
-          {/* Animated panel — pinned to right edge, slides in on translateX */}
           <Animated.View style={[styles.menuPanel, { transform: [{ translateX: panelAnim }] }]}>
             <View style={styles.menuHeader}>
-              <TouchableOpacity onPress={closeMenu} style={styles.menuClose}>
-                <Ionicons name="close" size={22} color={colors.textPrimary} />
-              </TouchableOpacity>
-              <View style={styles.menuBrand}>
-                <View style={styles.menuBrandIcon}>
-                  <Ionicons name="hammer" size={18} color={colors.white} />
+              <BlueprintGrid cell={20} />
+              <View style={styles.menuHeaderRow}>
+                <TouchableOpacity
+                  onPress={closeMenu}
+                  style={styles.menuClose}
+                  accessibilityRole="button"
+                  accessibilityLabel="סגירה"
+                >
+                  <Ionicons name="close" size={22} color={colors.onAsphalt} />
+                </TouchableOpacity>
+                <View style={styles.menuBrand}>
+                  <View style={styles.menuBrandIcon}>
+                    <Ionicons name="construct" size={18} color={colors.asphalt} />
+                  </View>
+                  <Text style={styles.menuBrandText}>הנדיל</Text>
                 </View>
-                <Text style={styles.menuBrandText}>הנדיל</Text>
               </View>
             </View>
-
-            <View style={styles.menuDivider} />
+            <HazardStripe height={6} stripe={9} />
 
             {MENU_ITEMS.map((item, idx) => (
               <TouchableOpacity
@@ -325,7 +322,7 @@ export default function HomeScreen() {
                 accessibilityLabel={item.title}
               >
                 <View style={styles.menuItemIconWrap}>
-                  <Ionicons name={item.icon as any} size={20} color={colors.primary} />
+                  <Ionicons name={item.icon as any} size={19} color={colors.asphalt} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.menuItemTitle}>{item.title}</Text>
@@ -336,7 +333,7 @@ export default function HomeScreen() {
             ))}
 
             <View style={styles.menuFooter}>
-              <Text style={styles.menuVersion}>הנדיל v1.0.0</Text>
+              <Text style={styles.menuVersion}>HANDIL · v1.0.0</Text>
               <Text style={styles.menuTagline}>מחברים אנשים לבעלי מקצוע</Text>
             </View>
           </Animated.View>
@@ -347,213 +344,156 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  scroll: { flex: 1 },
+  safe: { flex: 1, backgroundColor: colors.asphalt },
+  scroll: { flex: 1, backgroundColor: colors.background },
+  gutter: { paddingHorizontal: 20 },
+  gutterDesktop: { paddingHorizontal: 32 },
 
-  // ── Mobile hero (orange immersive)
-  heroMobile: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 28,
+  // ── Hero
+  hero: { backgroundColor: colors.asphalt, overflow: 'hidden' },
+  heroInner: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 22 },
+  heroInnerDesktop: { paddingHorizontal: 32, paddingTop: 30, paddingBottom: 30 },
+  heroTopRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
+  siteLabel: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    backgroundColor: colors.hazard, borderRadius: radius.sm,
+    paddingHorizontal: 7, paddingVertical: 2, marginBottom: 10,
   },
-  heroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 6,
-  },
-  heroGreeting: { fontSize: 24, fontWeight: '800', color: '#fff', textAlign: 'right' },
-  heroTagline: { fontSize: 14, color: 'rgba(255,255,255,0.8)', textAlign: 'right', marginTop: 2 },
-  heroBrand: {
-    width: 42, height: 42, borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  siteLabelText: { fontSize: 11, fontWeight: '800', color: colors.asphalt },
+  heroGreeting: { fontSize: 28, fontWeight: '900', color: colors.onAsphalt, textAlign: 'right', letterSpacing: -0.5 },
+  heroTagline: { fontSize: 15, color: colors.onAsphaltMuted, textAlign: 'right', marginTop: 2 },
+  menuBtn: {
+    width: 44, height: 44, borderRadius: radius.md,
+    backgroundColor: colors.asphaltSoft,
+    borderWidth: 1, borderColor: colors.asphaltLine,
     alignItems: 'center', justifyContent: 'center',
     marginStart: 12,
   },
-  heroBrandText: { fontSize: 20, fontWeight: '900', color: '#fff' },
-  heroLocationRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    marginBottom: 18, justifyContent: 'flex-end',
-  },
-  heroLocation: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
   heroSearch: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 14,
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: colors.surface, borderRadius: radius.md,
+    paddingStart: 16, padding: 5, gap: 10,
+    ...plateEdge(colors.primary, 3),
   },
-  heroSearchText: { fontSize: 14, color: colors.textDisabled, flex: 1 },
+  heroSearchDesktop: { maxWidth: 620 },
+  heroSearchText: { fontSize: 14, color: colors.textMuted, flex: 1 },
+  heroSearchBtn: {
+    width: 42, height: 42, borderRadius: radius.sm,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  specRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 16 },
+  spec: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  specText: { fontSize: 12, fontWeight: '700', color: colors.onAsphalt },
 
-  // ── Desktop hero
-  desktopHero: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 24,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 28,
-  },
-  desktopHeroTitle: { fontSize: 26, fontWeight: '800', color: colors.textPrimary, textAlign: 'right' },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4, justifyContent: 'flex-end' },
-  location: { fontSize: 13, color: colors.textMuted },
-  desktopSearchBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.background, borderRadius: 12,
-    paddingHorizontal: 18, paddingVertical: 12,
+  // ── Category tiles
+  tileRow: { paddingHorizontal: 20, gap: 10, paddingBottom: 6 },
+  tile: {
+    width: 84, alignItems: 'center',
+    backgroundColor: colors.surface, borderRadius: radius.lg,
     borderWidth: 1, borderColor: colors.border,
-    minWidth: 320,
+    paddingVertical: 12, paddingHorizontal: 6,
+    ...plateEdge(colors.border, 3),
   },
-  searchPlaceholder: { fontSize: 14, color: colors.textDisabled, flex: 1 },
-
-  // ── Section headers
-  sectionHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, marginBottom: 14, marginTop: 24,
+  tileIcon: {
+    width: 46, height: 46, borderRadius: radius.md,
+    backgroundColor: colors.hazard,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+    ...plateEdge(colors.hazardDark, 3),
   },
-  sectionHeaderDesktop: { paddingHorizontal: 32, marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  sectionLink: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-
-  // ── Mobile categories
-  categoriesRow: { paddingHorizontal: 20, gap: 14, paddingVertical: 10 },
-  categoryPill: { alignItems: 'center', paddingHorizontal: 4, minWidth: 64 },
-  categoryIcon: {
-    width: 58, height: 58, borderRadius: 18,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 7,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12, shadowRadius: 4, elevation: 2,
+  tileName: {
+    fontSize: 11, fontWeight: '800', color: colors.textSecondary,
+    textAlign: 'center', lineHeight: 14,
   },
-  categoryName: {
-    fontSize: 11, fontWeight: '600', color: colors.textSecondary,
-    textAlign: 'center', flexWrap: 'wrap', maxWidth: 68,
-  },
-
-  // ── Desktop categories — no minWidth so content determines size
-  categoriesDesktop: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
-    paddingHorizontal: 32, marginBottom: 24,
-  },
-  categoryPillDesktop: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  tileDesktop: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9,
+    borderRadius: radius.lg, paddingStart: 6, paddingEnd: 14, paddingVertical: 6,
+    ...plateEdge(colors.border, 3),
   },
-  categoryIconDesktop: {
-    width: 32, height: 32, borderRadius: 9,
-    backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center',
-  },
-  categoryNameDesktop: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  tileNameDesktop: { fontSize: 13, fontWeight: '800', color: colors.textSecondary },
 
-  // ── Job card + banner row
-  actionRow: { paddingHorizontal: 20, marginBottom: 24, gap: 12 },
-  actionRowDesktop: { flexDirection: 'row', paddingHorizontal: 32, gap: 16 },
-  jobCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: colors.surface, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: colors.primaryLight,
+  // ── Work order + promo
+  actionRow: { marginTop: 24, marginBottom: 28, gap: 14 },
+  actionRowDesktop: { flexDirection: 'row', gap: 16 },
+  orderCard: {
+    backgroundColor: colors.surface, borderRadius: radius.lg,
+    borderWidth: 1.5, borderColor: colors.asphalt,
+    overflow: 'hidden',
+    ...plateEdge(colors.asphalt, 4),
   },
-  jobCardDesktop: { flex: 1 },
-  jobCardResident: { borderColor: '#FDE68A' },
-  jobCardIcon: {
-    width: 46, height: 46, borderRadius: 13,
-    backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center',
+  orderHead: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: colors.asphalt, paddingHorizontal: 14, paddingVertical: 7,
   },
-  jobCardTitle: { fontSize: 14, fontWeight: '700', color: colors.primary, textAlign: 'right', marginBottom: 2 },
-  jobCardSub: { fontSize: 12, color: colors.textMuted, textAlign: 'right', lineHeight: 18 },
+  orderHeadText: { fontSize: 12, fontWeight: '800', color: colors.onAsphalt },
+  orderHeadNo: { fontFamily: monoFont, fontSize: 11, fontWeight: '700', color: colors.hazard, letterSpacing: 1 },
+  orderBody: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
+  orderIcon: {
+    width: 48, height: 48, borderRadius: radius.md,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    ...plateEdge(colors.primaryDark, 3),
+  },
+  orderTitle: { fontSize: 17, fontWeight: '900', color: colors.textPrimary, textAlign: 'right', marginBottom: 2 },
+  orderSub: { fontSize: 12, color: colors.textMuted, textAlign: 'right', lineHeight: 18 },
 
-  // ── Banner — orange with white CTA
-  banner: {
-    marginHorizontal: 20, marginBottom: 28,
-    backgroundColor: colors.primary, borderRadius: 20, padding: 22,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+  promo: { backgroundColor: colors.asphalt, borderRadius: radius.lg, overflow: 'hidden' },
+  promoInner: { padding: 20 },
+  promoBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+    borderWidth: 1, borderColor: colors.asphaltLine, borderRadius: radius.sm,
+    paddingHorizontal: 8, paddingVertical: 3, marginBottom: 12,
   },
-  bannerDesktop: { flex: 1, marginHorizontal: 0, marginBottom: 0 },
-  bannerBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    alignSelf: 'flex-end', marginBottom: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+  promoBadgeText: { fontSize: 11, fontWeight: '700', color: colors.onAsphalt },
+  promoTitle: {
+    fontSize: 22, fontWeight: '900', color: colors.onAsphalt,
+    textAlign: 'right', lineHeight: 30, marginBottom: 16,
   },
-  bannerBadgeText: { fontSize: 11, fontWeight: '700', color: colors.white },
-  bannerTitle: {
-    fontSize: 21, fontWeight: '800', color: colors.white,
-    textAlign: 'right', lineHeight: 30, marginBottom: 6,
+  promoCta: {
+    flexDirection: 'row', alignSelf: 'flex-start', alignItems: 'center', gap: 6,
+    borderWidth: 2, borderColor: colors.hazard, borderRadius: radius.md,
+    paddingHorizontal: 16, paddingVertical: 8,
   },
-  bannerSub: {
-    fontSize: 12, color: 'rgba(255,255,255,0.75)',
-    textAlign: 'right', marginBottom: 18,
-  },
-  bannerCta: {
-    flexDirection: 'row', alignSelf: 'flex-end',
-    backgroundColor: colors.white,
-    paddingHorizontal: 18, paddingVertical: 9,
-    borderRadius: 22, alignItems: 'center', gap: 6,
-  },
-  bannerCtaText: { color: colors.primary, fontWeight: '800', fontSize: 13 },
+  promoCtaText: { color: colors.hazard, fontWeight: '900', fontSize: 14 },
 
-  // ── Worker list / grid
-  workerList: { paddingHorizontal: 20 },
-  workerGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 32, gap: 14 },
+  // ── Workers
+  workerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   workerGridCard: { flex: 1, minWidth: 280 },
   emptyBox: { alignItems: 'center', paddingVertical: 32 },
   emptyText: { marginTop: 12, fontSize: 14, color: colors.textMuted },
 
-  // Desktop menu button
-  desktopMenuBtn: {
-    width: 40, height: 40, borderRadius: 10,
-    backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  // Hamburger modal
+  // ── Side menu
   menuPanel: {
-    position: 'absolute', top: 0, bottom: 0, right: 0, width: 290,
+    position: 'absolute', top: 0, bottom: 0, right: 0, width: 300,
     backgroundColor: colors.surface,
     paddingBottom: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: -4, height: 0 },
-    shadowOpacity: 0.12, shadowRadius: 16, elevation: 12,
   },
-  menuHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 56,
-    paddingBottom: 16,
+  menuHeader: { backgroundColor: colors.asphalt, overflow: 'hidden' },
+  menuHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 56, paddingBottom: 18,
   },
-  menuClose: { padding: 4 },
+  menuClose: { padding: 6 },
   menuBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   menuBrandIcon: {
-    width: 34, height: 34, borderRadius: 10,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    width: 34, height: 34, borderRadius: radius.md,
+    backgroundColor: colors.hazard, alignItems: 'center', justifyContent: 'center',
   },
-  menuBrandText: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
-  menuDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: 20, marginBottom: 8 },
+  menuBrandText: { fontSize: 20, fontWeight: '900', color: colors.onAsphalt },
   menuItem: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingHorizontal: 20, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
   menuItemIconWrap: {
-    width: 38, height: 38, borderRadius: 11,
-    backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center',
+    width: 38, height: 38, borderRadius: radius.md,
+    backgroundColor: colors.hazardLight, borderWidth: 1, borderColor: colors.hazard,
+    alignItems: 'center', justifyContent: 'center',
   },
-  menuItemTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, textAlign: 'right', marginBottom: 2 },
+  menuItemTitle: { fontSize: 14, fontWeight: '800', color: colors.textPrimary, textAlign: 'right', marginBottom: 2 },
   menuItemSub: { fontSize: 11, color: colors.textMuted, textAlign: 'right' },
   menuFooter: { paddingHorizontal: 20, paddingTop: 24, alignItems: 'flex-end' },
-  menuVersion: { fontSize: 12, fontWeight: '600', color: colors.textDisabled },
+  menuVersion: { fontFamily: monoFont, fontSize: 11, fontWeight: '700', color: colors.textDisabled, letterSpacing: 1 },
   menuTagline: { fontSize: 11, color: colors.textDisabled, marginTop: 2 },
 });

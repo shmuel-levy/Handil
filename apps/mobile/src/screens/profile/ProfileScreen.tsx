@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { CATEGORIES } from '../../constants/categories';
+import BlueprintGrid from '../../components/site/BlueprintGrid';
+import HazardStripe from '../../components/site/HazardStripe';
 import { colors } from '../../constants/colors';
 import { updateMyProfile } from '../../services/authApi';
 import { getMyWorkerProfile, getWorker, updateWorkerProfile } from '../../services/workersApi';
@@ -130,10 +132,11 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll} contentContainerStyle={styles.content}>
 
         {/* ── Hero header ── */}
         <View style={styles.hero}>
+          <BlueprintGrid />
           {/* Avatar */}
           <View style={styles.avatarWrap}>
             {photo ? (
@@ -152,8 +155,8 @@ export default function ProfileScreen() {
               accessibilityLabel="שינוי תמונת פרופיל"
             >
               {photoSaving
-                ? <ActivityIndicator size="small" color={colors.white} />
-                : <Ionicons name="camera" size={16} color={colors.white} />}
+                ? <ActivityIndicator size="small" color={colors.asphalt} />
+                : <Ionicons name="camera" size={16} color={colors.asphalt} />}
             </TouchableOpacity>
           </View>
 
@@ -164,13 +167,14 @@ export default function ProfileScreen() {
             <Ionicons
               name={isWorker ? 'construct' : 'home'}
               size={12}
-              color={isWorker ? colors.primary : colors.success}
+              color={colors.asphalt}
             />
-            <Text style={[styles.rolePillText, isWorker ? { color: colors.primary } : { color: colors.success }]}>
+            <Text style={styles.rolePillText}>
               {isWorker ? 'בעל מקצוע' : 'דייר'}
             </Text>
           </View>
         </View>
+        <HazardStripe height={8} stripe={12} />
 
         {/* ── Worker stats ── */}
         {isWorker && workerProfile && (
@@ -184,7 +188,7 @@ export default function ProfileScreen() {
             <View style={styles.statDivider} />
             <StatCard
               icon="chatbubble-ellipses"
-              iconColor="#8B5CF6"
+              iconColor={colors.blueprint}
               value={String(workerProfile.reviewCount ?? 0)}
               label="ביקורות"
             />
@@ -215,7 +219,7 @@ export default function ProfileScreen() {
               />
               <DashCell
                 icon="trending-up"
-                iconColor="#8B5CF6"
+                iconColor={colors.blueprint}
                 value={workerStats.completionRate !== null ? `${workerStats.completionRate}%` : '—'}
                 label="אחוז השלמה"
               />
@@ -475,47 +479,51 @@ function SettingRow({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  // Asphalt so the status-bar inset above the hero matches it
+  safe: { flex: 1, backgroundColor: colors.asphalt },
+  scroll: { backgroundColor: colors.background },
   content: { paddingBottom: 32 },
 
   // ── Hero
   hero: {
-    backgroundColor: colors.primary, alignItems: 'center',
-    paddingTop: 32, paddingBottom: 36, paddingHorizontal: 24,
+    backgroundColor: colors.asphalt, alignItems: 'center',
+    paddingTop: 32, paddingBottom: 30, paddingHorizontal: 24,
+    overflow: 'hidden',
   },
   avatarWrap: { position: 'relative', marginBottom: 16 },
+  // Square site-ID photo with a hazard-yellow frame
   avatar: {
-    width: 96, height: 96, borderRadius: 48,
-    borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)',
+    width: 96, height: 96, borderRadius: 10,
+    borderWidth: 3, borderColor: colors.hazard,
   },
   avatarFallback: {
-    width: 96, height: 96, borderRadius: 48,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)',
+    width: 96, height: 96, borderRadius: 10,
+    backgroundColor: colors.hazard,
+    borderBottomWidth: 5, borderBottomColor: colors.hazardDark,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitial: { fontSize: 38, fontWeight: '800', color: '#fff' },
+  avatarInitial: { fontSize: 40, fontWeight: '900', color: colors.asphalt },
   cameraBtn: {
-    position: 'absolute', bottom: 0, left: 0,
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: colors.primaryDark,
-    borderWidth: 2.5, borderColor: '#fff',
+    position: 'absolute', bottom: -6, left: -6,
+    width: 32, height: 32, borderRadius: 6,
+    backgroundColor: colors.hazard,
+    borderWidth: 2.5, borderColor: colors.asphalt,
     alignItems: 'center', justifyContent: 'center',
   },
-  heroName: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  heroEmail: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 14 },
+  heroName: { fontSize: 24, fontWeight: '900', color: colors.onAsphalt, marginBottom: 4 },
+  heroEmail: { fontSize: 13, color: colors.onAsphaltMuted, marginBottom: 14 },
   rolePill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 4,
   },
-  rolePillWorker: { backgroundColor: 'rgba(255,255,255,0.9)' },
-  rolePillResident: { backgroundColor: 'rgba(255,255,255,0.9)' },
-  rolePillText: { fontSize: 13, fontWeight: '700' },
+  rolePillWorker: { backgroundColor: colors.hazard },
+  rolePillResident: { backgroundColor: colors.onAsphalt },
+  rolePillText: { fontSize: 13, fontWeight: '900', color: colors.asphalt },
 
   // ── Stats
   statsRow: {
     flexDirection: 'row', backgroundColor: colors.surface,
-    marginHorizontal: 20, marginTop: -20, borderRadius: 18, padding: 20,
+    marginHorizontal: 20, marginTop: 16, borderRadius: 8, padding: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
     marginBottom: 16,
@@ -527,7 +535,7 @@ const styles = StyleSheet.create({
 
   // ── Cards
   card: {
-    backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: 18, padding: 18,
+    backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: 8, padding: 18,
     marginBottom: 14, borderWidth: 1, borderColor: colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
@@ -559,7 +567,7 @@ const styles = StyleSheet.create({
   catChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 11, paddingVertical: 7,
-    borderRadius: 20, borderWidth: 1.5,
+    borderRadius: 6, borderWidth: 1.5,
     borderColor: colors.border, backgroundColor: colors.background,
   },
   catChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
@@ -574,7 +582,7 @@ const styles = StyleSheet.create({
   },
   dashCell: {
     width: '47%', alignItems: 'center', gap: 6,
-    backgroundColor: colors.background, borderRadius: 14, padding: 14,
+    backgroundColor: colors.background, borderRadius: 6, padding: 14,
     borderWidth: 1, borderColor: colors.border,
   },
   dashIconWrap: {
@@ -586,7 +594,7 @@ const styles = StyleSheet.create({
 
   // ── Settings
   settingsCard: {
-    backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: 18,
+    backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: 8,
     marginBottom: 16, borderWidth: 1, borderColor: colors.border,
     overflow: 'hidden',
   },
@@ -606,13 +614,13 @@ const styles = StyleSheet.create({
   // ── Logout
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginHorizontal: 20, paddingVertical: 15, borderRadius: 16,
+    marginHorizontal: 20, paddingVertical: 15, borderRadius: 6,
     borderWidth: 1.5, borderColor: colors.error + '60',
     backgroundColor: colors.errorLight,
   },
   logoutText: { fontSize: 15, fontWeight: '700', color: colors.error },
   logoutConfirm: {
-    marginHorizontal: 20, padding: 18, borderRadius: 16,
+    marginHorizontal: 20, padding: 18, borderRadius: 8,
     backgroundColor: colors.errorLight, borderWidth: 1, borderColor: colors.error + '40',
     gap: 14,
   },

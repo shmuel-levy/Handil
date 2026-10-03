@@ -17,9 +17,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ErrorState from '../../components/common/ErrorState';
+import HazardStripe from '../../components/site/HazardStripe';
+import WorkOrderTag from '../../components/site/WorkOrderTag';
 import { SkeletonList } from '../../components/common/Skeleton';
 import { getCategoryBySlug } from '../../constants/categories';
 import { colors } from '../../constants/colors';
+import { monoFont, plateEdge, radius } from '../../constants/theme';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { PostsStackParamList } from '../../navigation/types';
 import { getMyPosts, getOpenPosts } from '../../services/postsApi';
@@ -33,17 +36,18 @@ import { logger } from '../../utils/logger';
 type Nav = NativeStackNavigationProp<PostsStackParamList>;
 
 const URGENCY_LABEL: Record<string, string> = {
-  urgent: '🔴 דחוף',
-  today:  '🟡 היום',
-  week:   '🔵 השבוע',
-  flexible: '⚪ גמיש',
+  urgent:   'דחוף',
+  today:    'היום',
+  week:     'השבוע',
+  flexible: 'גמיש',
 };
 
-const URGENCY_COLOR: Record<string, string> = {
-  urgent:   colors.error,
-  today:    '#F59E0B',
-  week:     colors.primary,
-  flexible: colors.textMuted,
+/** Urgency as a site priority level: [text, background] */
+const URGENCY_STYLE: Record<string, { fg: string; bg: string }> = {
+  urgent:   { fg: colors.white,     bg: colors.error },
+  today:    { fg: colors.asphalt,   bg: colors.hazard },
+  week:     { fg: colors.white,     bg: colors.blueprint },
+  flexible: { fg: colors.textMuted, bg: colors.borderLight },
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -64,7 +68,7 @@ function PostCard({
   onQuotesPress?: () => void;
 }) {
   const cat = getCategoryBySlug(post.category);
-  const urgencyColor = URGENCY_COLOR[post.urgency] ?? colors.textMuted;
+  const urgency = URGENCY_STYLE[post.urgency] ?? URGENCY_STYLE.flexible;
   const isClosed  = post.status === 'closed';
   const isUrgent  = post.urgency === 'urgent';
   const hasQuotes = !isWorker && quoteCount > 0 && post.status === 'open';
@@ -79,12 +83,17 @@ function PostCard({
       ]}
       onPress={isClosed ? undefined : onPress}
       activeOpacity={isClosed ? 1 : 0.85}
+      accessibilityRole="button"
+      accessibilityLabel={`${post.title}, ${cat?.name_he ?? post.category}, ${URGENCY_LABEL[post.urgency] ?? ''}`}
     >
-      {/* Urgent strip */}
+      {/* Urgent jobs are taped off like a hazard zone */}
       {isUrgent && !isClosed && (
-        <View style={styles.urgentStrip}>
-          <Ionicons name="flash" size={12} color={colors.white} />
-          <Text style={styles.urgentStripText}>דחוף עכשיו</Text>
+        <View style={styles.urgentTape}>
+          <HazardStripe height={8} stripe={10} />
+          <View style={styles.urgentStrip}>
+            <Ionicons name="warning" size={12} color={colors.hazard} />
+            <Text style={styles.urgentStripText}>דחוף עכשיו</Text>
+          </View>
         </View>
       )}
 
@@ -110,13 +119,16 @@ function PostCard({
 
       <View style={[styles.cardTop, isClosed && { opacity: 0.5 }]}>
         <View style={styles.catBadge}>
-          <Ionicons name={(cat?.icon ?? 'briefcase-outline') as any} size={13} color={colors.primary} />
+          <Ionicons name={(cat?.icon ?? 'briefcase-outline') as any} size={13} color={colors.hazardInk} />
           <Text style={styles.catBadgeText}>{cat?.name_he ?? post.category}</Text>
         </View>
-        <View style={[styles.urgencyBadge, { borderColor: urgencyColor }]}>
-          <Text style={[styles.urgencyText, { color: urgencyColor }]}>
-            {URGENCY_LABEL[post.urgency]}
-          </Text>
+        <View style={styles.cardTopEnd}>
+          <View style={[styles.urgencyBadge, { backgroundColor: urgency.bg }]}>
+            <Text style={[styles.urgencyText, { color: urgency.fg }]}>
+              {URGENCY_LABEL[post.urgency]}
+            </Text>
+          </View>
+          <WorkOrderTag id={post._id} />
         </View>
       </View>
 
@@ -126,6 +138,9 @@ function PostCard({
           {post.description}
         </Text>
       ) : null}
+
+      {/* Perforation line, like the tear-off stub of a paper work order */}
+      <View style={styles.perforation} />
 
       <View style={[styles.cardBottom, isClosed && { opacity: 0.45 }]}>
         <View style={styles.residentRow}>
@@ -367,7 +382,7 @@ export default function PostsFeedScreen() {
             style={styles.newBtn}
             onPress={() => navigation.navigate('CreatePost')}
           >
-            <Ionicons name="add" size={22} color={colors.white} />
+            <Ionicons name="add" size={24} color={colors.asphalt} />
           </TouchableOpacity>
         )}
       </View>
@@ -379,14 +394,14 @@ export default function PostsFeedScreen() {
             style={[styles.tab, activeTab === 'all' && styles.tabActive]}
             onPress={() => setActiveTab('all')}
           >
-            <Ionicons name="list-outline" size={14} color={activeTab === 'all' ? colors.primary : colors.textMuted} />
+            <Ionicons name="list-outline" size={14} color={activeTab === 'all' ? colors.asphalt : colors.onAsphaltMuted} />
             <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>כל העבודות</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'recommended' && styles.tabActive]}
             onPress={() => { setActiveTab('recommended'); if (recPosts.length === 0) loadRecommended(); }}
           >
-            <Ionicons name="sparkles-outline" size={14} color={activeTab === 'recommended' ? colors.primary : colors.textMuted} />
+            <Ionicons name="sparkles-outline" size={14} color={activeTab === 'recommended' ? colors.asphalt : colors.onAsphaltMuted} />
             <Text style={[styles.tabText, activeTab === 'recommended' && styles.tabTextActive]}>
               מומלץ לך
             </Text>
@@ -400,13 +415,15 @@ export default function PostsFeedScreen() {
       {/* Recommended banner */}
       {isWorker && activeTab === 'recommended' && recPersonalized && recPosts.length > 0 && (
         <View style={styles.recBanner}>
-          <Ionicons name="sparkles" size={13} color={colors.primary} />
+          <Ionicons name="sparkles" size={13} color={colors.blueprint} />
           <Text style={styles.recBannerText}>
             עבודות שמתאימות לעיר ולקטגוריות שלך — ממוינות לפי דחיפות
           </Text>
         </View>
       )}
 
+      <HazardStripe height={6} stripe={9} />
+      <View style={styles.body}>
       {loading || (activeTab === 'recommended' && recLoading) ? (
         <SkeletonList count={4} variant="post" />
       ) : error && displayedPosts.length === 0 ? (
@@ -448,6 +465,7 @@ export default function PostsFeedScreen() {
           ListEmptyComponent={<EmptyState isWorker={isWorker} tab={activeTab} />}
         />
       )}
+      </View>
 
       {/* FAB for residents */}
       {!isWorker && !loading && (
@@ -455,6 +473,8 @@ export default function PostsFeedScreen() {
           style={styles.fab}
           onPress={() => navigation.navigate('CreatePost')}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="פרסם עבודה"
         >
           <Ionicons name="add" size={26} color={colors.white} />
           <Text style={styles.fabText}>פרסם עבודה</Text>
@@ -467,7 +487,7 @@ export default function PostsFeedScreen() {
 function EmptyState({ isWorker, tab }: { isWorker: boolean; tab: string }) {
   return (
     <View style={styles.empty}>
-      <Ionicons name="document-text-outline" size={52} color={colors.textDisabled} />
+      <Ionicons name="clipboard-outline" size={52} color={colors.textDisabled} />
       <Text style={styles.emptyTitle}>
         {tab === 'recommended' ? 'לא נמצאו עבודות מתאימות' : isWorker ? 'אין עבודות פתוחות כרגע' : 'עדיין לא פרסמת עבודות'}
       </Text>
@@ -481,54 +501,65 @@ function EmptyState({ isWorker, tab }: { isWorker: boolean; tab: string }) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: colors.asphalt },
+  body: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14,
-    borderBottomWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+    backgroundColor: colors.asphalt,
   },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, textAlign: 'right' },
-  headerSub: { fontSize: 12, color: colors.textMuted, textAlign: 'right', marginTop: 2 },
-  newBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 22, fontWeight: '900', color: colors.onAsphalt, textAlign: 'right' },
+  headerSub: { fontSize: 12, color: colors.onAsphaltMuted, textAlign: 'right', marginTop: 2 },
+  newBtn: {
+    width: 42, height: 42, borderRadius: radius.md, backgroundColor: colors.hazard,
+    alignItems: 'center', justifyContent: 'center',
+    ...plateEdge(colors.hazardDark),
+  },
 
   // Available now toggle
-  availableRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  availableRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.asphaltSoft, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.asphaltLine,
+    paddingStart: 10, paddingEnd: 4, paddingVertical: 2,
+  },
   availDot: { width: 8, height: 8, borderRadius: 4 },
-  availableLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  availableLabel: { fontSize: 12, fontWeight: '800', color: colors.onAsphalt },
 
   // Tabs
   tabs: {
-    flexDirection: 'row', backgroundColor: colors.surface,
-    borderBottomWidth: 1, borderColor: colors.border,
+    flexDirection: 'row', backgroundColor: colors.asphalt,
+    paddingHorizontal: 12, gap: 6, paddingBottom: 10,
   },
   tab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, paddingVertical: 11, position: 'relative',
+    gap: 5, paddingVertical: 9, position: 'relative',
+    borderRadius: radius.md, backgroundColor: colors.asphaltSoft,
   },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
-  tabText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
-  tabTextActive: { color: colors.primary, fontWeight: '700' },
+  tabActive: { backgroundColor: colors.hazard, ...plateEdge(colors.hazardDark) },
+  tabText: { fontSize: 13, fontWeight: '700', color: colors.onAsphaltMuted },
+  tabTextActive: { color: colors.asphalt, fontWeight: '900' },
   personalizedDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success, position: 'absolute', top: 8, end: 16 },
 
   // Recommended banner
   recBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.primaryLight, paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: colors.blueprintLight, paddingHorizontal: 16, paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  recBannerText: { flex: 1, fontSize: 12, color: colors.primary, textAlign: 'right', lineHeight: 18 },
+  recBannerText: { flex: 1, fontSize: 12, color: colors.blueprint, textAlign: 'right', lineHeight: 18, fontWeight: '600' },
 
-  // Cards
-  list: { padding: 16, paddingBottom: 100, gap: 12 },
+  // Cards — paper work orders
+  list: { padding: 16, paddingBottom: 110, gap: 12, backgroundColor: colors.background, flexGrow: 1 },
   card: {
-    backgroundColor: colors.surface, borderRadius: 16, padding: 16,
+    backgroundColor: colors.surface, borderRadius: radius.lg, padding: 16,
     borderWidth: 1, borderColor: colors.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 4, elevation: 2,
+    ...plateEdge(colors.border, 3),
     overflow: 'hidden',
   },
-  cardClosed: { backgroundColor: colors.borderLight, borderColor: colors.border },
-  cardUrgent: { borderColor: colors.error, borderWidth: 1.5 },
-  cardHasQuotes: { borderColor: colors.success, borderWidth: 1.5 },
+  cardClosed: { backgroundColor: colors.borderLight },
+  cardUrgent: { borderColor: colors.asphalt, borderWidth: 1.5, ...plateEdge(colors.asphalt, 4) },
+  cardHasQuotes: { borderColor: colors.success, borderWidth: 1.5, ...plateEdge(colors.success, 4) },
   quotesBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: colors.success,
@@ -536,80 +567,100 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 9,
   },
   quotesBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  quotesBannerText: { fontSize: 13, fontWeight: '700', color: colors.white },
+  quotesBannerText: { fontSize: 13, fontWeight: '800', color: colors.white },
+  urgentTape: { marginHorizontal: -16, marginTop: -16, marginBottom: 12 },
   urgentStrip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: colors.error, paddingHorizontal: 12, paddingVertical: 5,
-    marginHorizontal: -16, marginTop: -16, marginBottom: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.asphalt, paddingHorizontal: 12, paddingVertical: 5,
   },
-  urgentStripText: { fontSize: 11, fontWeight: '800', color: colors.white },
+  urgentStripText: { fontSize: 11, fontWeight: '900', color: colors.hazard, letterSpacing: 0.5 },
 
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  cardTopEnd: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   catBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: colors.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
+    backgroundColor: colors.hazardLight, borderWidth: 1, borderColor: colors.hazard,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm,
   },
-  catBadgeText: { fontSize: 12, fontWeight: '600', color: colors.primary },
-  urgencyBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
-  urgencyText: { fontSize: 11, fontWeight: '700' },
-  postTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, textAlign: 'right', marginBottom: 6, lineHeight: 24 },
+  catBadgeText: { fontSize: 12, fontWeight: '800', color: colors.hazardInk },
+  urgencyBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.sm },
+  urgencyText: { fontSize: 11, fontWeight: '900' },
+  postTitle: { fontSize: 17, fontWeight: '800', color: colors.textPrimary, textAlign: 'right', marginBottom: 6, lineHeight: 24 },
   postDesc: { fontSize: 13, color: colors.textSecondary, textAlign: 'right', lineHeight: 21, marginBottom: 12 },
+  perforation: {
+    borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border,
+    marginHorizontal: -16, marginBottom: 12,
+  },
   cardBottom: { gap: 10 },
   residentRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  residentAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  residentAvatarText: { fontSize: 12, fontWeight: '700', color: colors.white },
-  residentName: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, flex: 1, textAlign: 'right' },
+  residentAvatar: {
+    width: 28, height: 28, borderRadius: radius.sm, backgroundColor: colors.asphalt,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  residentAvatarText: { fontSize: 12, fontWeight: '800', color: colors.hazard },
+  residentName: { fontSize: 13, fontWeight: '700', color: colors.textSecondary, flex: 1, textAlign: 'right' },
   locationText: { fontSize: 11, color: colors.textMuted },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  budgetChip: { backgroundColor: colors.successLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  budgetText: { fontSize: 13, fontWeight: '700', color: colors.success },
-  acceptHint: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  acceptHintText: { fontSize: 13, fontWeight: '700', color: colors.primary },
-  statusChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  budgetChip: {
+    backgroundColor: colors.asphalt, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm,
+  },
+  budgetText: { fontFamily: monoFont, fontSize: 13, fontWeight: '700', color: colors.hazard },
+  acceptHint: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  acceptHintText: { fontSize: 13, fontWeight: '800', color: colors.primary },
+  statusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm },
   statusOpen: { backgroundColor: colors.successLight },
   statusTaken: { backgroundColor: colors.border },
-  statusText: { fontSize: 12, fontWeight: '700' },
+  statusText: { fontSize: 12, fontWeight: '800' },
   closedBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 10,
+    backgroundColor: colors.border, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 10,
   },
   closedBannerText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
 
   // Desktop
-  desktopGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 24, gap: 16, paddingBottom: 40, alignItems: 'flex-start' },
+  desktopGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', padding: 24, gap: 16, paddingBottom: 40,
+    alignItems: 'flex-start', backgroundColor: colors.background, flexGrow: 1,
+  },
   desktopCard: { flex: 1, minWidth: 320 },
 
   // Empty
   empty: { alignItems: 'center', paddingTop: 80, gap: 12, flex: 1, width: '100%' as any },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.textSecondary, textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: colors.textSecondary, textAlign: 'center' },
   emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
 
-  // FAB
+  // FAB — a squared steel plate, not a pill
   fab: {
     position: 'absolute', bottom: 24, alignSelf: 'center',
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 30,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
+    backgroundColor: colors.primary, paddingHorizontal: 22, paddingVertical: 13, borderRadius: radius.md,
+    ...plateEdge(colors.primaryDark, 4),
   },
-  fabText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+  fabText: { color: colors.white, fontSize: 15, fontWeight: '900' },
 
   // Notice modal
-  noticeOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 28 },
+  noticeOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 28 },
   noticeCard: {
-    backgroundColor: colors.surface, borderRadius: 24, padding: 28, width: '100%', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 24, elevation: 12,
+    backgroundColor: colors.surface, borderRadius: radius.xl, padding: 28, width: '100%', alignItems: 'center',
+    overflow: 'hidden',
   },
-  noticeIconWrap: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  noticeIconWrap: {
+    width: 80, height: 80, borderRadius: radius.lg, backgroundColor: colors.hazard,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+    ...plateEdge(colors.hazardDark, 4),
+  },
   noticeEmoji: { fontSize: 40 },
   noticeTitle: { fontSize: 24, fontWeight: '900', color: colors.textPrimary, textAlign: 'center', marginBottom: 16 },
-  noticeQuoteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.primaryLight, borderRadius: 12, padding: 12, marginBottom: 8, width: '100%' },
-  noticeQuoteTitle: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.primaryDark, textAlign: 'right' },
-  noticePhone: { fontSize: 13, color: colors.primary, fontWeight: '700' },
+  noticeQuoteRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.background,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: 12, marginBottom: 8, width: '100%',
+  },
+  noticeQuoteTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.textPrimary, textAlign: 'right' },
+  noticePhone: { fontFamily: monoFont, fontSize: 13, color: colors.primary, fontWeight: '700' },
   noticeSub: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 22, marginTop: 8, marginBottom: 24 },
   noticeBtn: {
-    backgroundColor: colors.primary, paddingVertical: 15, paddingHorizontal: 40, borderRadius: 16, width: '100%', alignItems: 'center',
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+    backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 40, borderRadius: radius.md, width: '100%', alignItems: 'center',
+    ...plateEdge(colors.primaryDark, 4),
   },
-  noticeBtnText: { color: colors.white, fontSize: 16, fontWeight: '800' },
+  noticeBtnText: { color: colors.white, fontSize: 16, fontWeight: '900' },
 });

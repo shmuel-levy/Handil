@@ -1,11 +1,11 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
+import { siteHeader } from './stackOptions';
 import BookingRequestScreen from '../screens/bookings/BookingRequestScreen';
 import HomeScreen from '../screens/home/HomeScreen';
 import InfoScreen, { TOPICS } from '../screens/info/InfoScreen';
 import WorkerDetailScreen from '../screens/workers/WorkerDetailScreen';
 import WorkerListScreen from '../screens/workers/WorkerListScreen';
-import { colors } from '../constants/colors';
 import { HomeStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -13,12 +13,7 @@ const Stack = createNativeStackNavigator<HomeStackParamList>();
 export default function HomeStack() {
   return (
     <Stack.Navigator
-      screenOptions={{
-        headerTintColor: colors.primary,
-        headerBackTitle: '',
-        headerStyle: { backgroundColor: colors.surface },
-        headerShadowVisible: false,
-      }}
+      screenOptions={siteHeader}
     >
       <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen
