@@ -37,6 +37,11 @@ export default function Button({
       ]}
       disabled={isDisabled}
       activeOpacity={0.8}
+      // Screen readers announce the label and the disabled/busy state.
+      // `rest` comes last so a caller can still override any of these.
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       {...rest}
     >
       {loading ? (

@@ -3,7 +3,6 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -13,10 +12,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ErrorState from '../../components/common/ErrorState';
+import { SkeletonList } from '../../components/common/Skeleton';
 import WorkerCard from '../../components/workers/WorkerCard';
 import { CATEGORIES } from '../../constants/categories';
 import { colors } from '../../constants/colors';
 import { HomeStackParamList, SearchStackParamList } from '../../navigation/types';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getWorkers } from '../../services/workersApi';
 import { WorkerProfile } from '../../types';
 
@@ -32,25 +34,31 @@ export default function WorkerListScreen() {
   const [workers, setWorkers] = useState<WorkerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  // Wait for typing to settle before hitting the API
+  const debouncedQuery = useDebouncedValue(query, 350);
 
   const fetchWorkers = useCallback(
     async (refresh = false) => {
       if (refresh) setRefreshing(true);
       else setLoading(true);
+      setError('');
       try {
         const { workers: data } = await getWorkers({
           category: selectedCategory || undefined,
-          q: query || undefined,
+          q: debouncedQuery.trim() || undefined,
         });
         setWorkers(data);
-      } catch {
+      } catch (e: any) {
         setWorkers([]);
+        setError(e?.response?.data?.message ?? 'לא הצלחנו לטעון את בעלי המקצוע. נסו שוב');
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [selectedCategory, query]
+    [selectedCategory, debouncedQuery]
   );
 
   useEffect(() => {
@@ -116,7 +124,9 @@ export default function WorkerListScreen() {
 
       {/* Results */}
       {loading ? (
-        <ActivityIndicator style={styles.loader} color={colors.primary} size="large" />
+        <SkeletonList count={5} variant="worker" />
+      ) : error ? (
+        <ErrorState message={error} onRetry={() => fetchWorkers()} />
       ) : (
         <FlatList
           style={{ flex: 1 }}

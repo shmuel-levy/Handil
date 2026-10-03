@@ -12,8 +12,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ErrorState from '../../components/common/ErrorState';
+import { SkeletonList } from '../../components/common/Skeleton';
 import { colors } from '../../constants/colors';
 import { ChatStackParamList } from '../../navigation/types';
+import { useSocketEvent } from '../../hooks/useSocketEvent';
 import { getMyConversations } from '../../services/chatApi';
 import { useAuthStore } from '../../store/authStore';
 import { Conversation } from '../../types';
@@ -27,13 +30,20 @@ export default function ConversationsScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading]             = useState(true);
   const [refreshing, setRefreshing]       = useState(false);
+  const [error, setError]                 = useState('');
 
   const load = useCallback(async () => {
+    setError('');
     try {
       const { conversations: c } = await getMyConversations();
       setConversations(c);
-    } catch {}
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? 'לא הצלחנו לטעון את השיחות');
+    }
   }, []);
+
+  // Keep the list live — a new message used to require pull-to-refresh
+  useSocketEvent('conversation_updated', () => { load(); });
 
   useFocusEffect(
     useCallback(() => {
@@ -81,7 +91,9 @@ export default function ConversationsScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+        <SkeletonList count={5} variant="worker" />
+      ) : error && conversations.length === 0 ? (
+        <ErrorState message={error} onRetry={load} />
       ) : (
         <FlatList
           data={conversations}

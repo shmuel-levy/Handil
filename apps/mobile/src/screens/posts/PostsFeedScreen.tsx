@@ -16,16 +16,19 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ErrorState from '../../components/common/ErrorState';
+import { SkeletonList } from '../../components/common/Skeleton';
 import { getCategoryBySlug } from '../../constants/categories';
 import { colors } from '../../constants/colors';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { PostsStackParamList } from '../../navigation/types';
 import { getMyPosts, getOpenPosts } from '../../services/postsApi';
 import { getMyQuotes } from '../../services/quotesApi';
-import { connectSocket } from '../../services/socketClient';
-import { getRecommendedPosts, toggleAvailable } from '../../services/workersApi';
+import { useSocketEvent } from '../../hooks/useSocketEvent';
+import { getMyWorkerProfile, getRecommendedPosts, toggleAvailable } from '../../services/workersApi';
 import { useAuthStore } from '../../store/authStore';
 import { JobPost, Quote } from '../../types';
+import { logger } from '../../utils/logger';
 
 type Nav = NativeStackNavigationProp<PostsStackParamList>;
 
@@ -185,6 +188,7 @@ export default function PostsFeedScreen() {
   const [available, setAvailable]       = useState<boolean>(true);
   const [availToggling, setAvailToggling] = useState(false);
   const [acceptedNotice, setAcceptedNotice] = useState<Quote[]>([]);
+  const [error, setError] = useState('');
 
   // Accepted-quote notification
   useFocusEffect(
@@ -200,32 +204,38 @@ export default function PostsFeedScreen() {
           const seenIds: string[] = raw ? JSON.parse(raw) : [];
           const unseen = accepted.filter((q) => !seenIds.includes(q._id));
           if (unseen.length > 0) setAcceptedNotice(unseen);
-        } catch {}
+        } catch (e: any) {
+          // Deliberately non-fatal: this only decides whether to show the
+          // "your quote was accepted" celebration. The feed below is the real
+          // content and must still render if this lookup fails.
+          logger.warn('PostsFeed', 'accepted-quote check failed', e?.message);
+        }
       })();
     }, [isWorker, user?.id])
   );
 
   const loadAll = useCallback(async () => {
+    setError('');
     try {
-      if (isWorker) {
-        const { posts: p } = await getOpenPosts();
-        setPosts(p);
-      } else {
-        const { posts: p } = await getMyPosts();
-        setPosts(p);
-      }
-    } catch {}
+      const { posts: p } = isWorker ? await getOpenPosts() : await getMyPosts();
+      setPosts(p);
+    } catch (e: any) {
+      // Previously swallowed, so a failed load looked identical to "no posts yet"
+      setError(e?.response?.data?.message ?? 'לא הצלחנו לטעון את העבודות. בדקו את החיבור');
+    }
   }, [isWorker]);
 
   const loadRecommended = useCallback(async () => {
     if (!isWorker) return;
     setRecLoading(true);
+    setError('');
     try {
       const { posts: p, isPersonalized } = await getRecommendedPosts();
       setRecPosts(p);
       setRecPersonalized(isPersonalized);
-    } catch {
+    } catch (e: any) {
       setRecPosts([]);
+      setError(e?.response?.data?.message ?? 'לא הצלחנו לטעון את ההמלצות');
     } finally {
       setRecLoading(false);
     }
@@ -236,11 +246,21 @@ export default function PostsFeedScreen() {
       .finally(() => setLoading(false));
   }, [loadAll, loadRecommended, isWorker]);
 
-  // Sync available toggle from user/worker profile
+  // Read the real availability off the worker profile. This used to hardcode
+  // `true`, so the toggle claimed "זמין" even for a worker who had turned
+  // themselves off — and flipping it once would silently re-enable them.
   useEffect(() => {
-    // We don't have worker profile here; default to true
-    setAvailable(true);
-  }, []);
+    if (!isWorker) return;
+    let cancelled = false;
+    getMyWorkerProfile()
+      .then(({ worker }) => {
+        if (!cancelled) setAvailable(worker.isAvailable ?? true);
+      })
+      .catch(() => {
+        // Leave the toggle at its current value rather than inventing one
+      });
+    return () => { cancelled = true; };
+  }, [isWorker]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -271,23 +291,13 @@ export default function PostsFeedScreen() {
   };
 
   // Real-time: prepend new posts for workers
-  useEffect(() => {
-    if (!isWorker) return;
-    let mounted = true;
-    connectSocket().then((socket) => {
-      if (!mounted) return;
-      const handler = (data: { post: JobPost }) => {
-        if (!data.post) return;
-        setPosts((prev) => {
-          if (prev.some((p) => p._id === data.post._id)) return prev;
-          return [data.post, ...prev];
-        });
-      };
-      socket.on('new_post', handler);
-      return () => { socket.off('new_post', handler); };
-    }).catch(() => {});
-    return () => { mounted = false; };
-  }, [isWorker]);
+  useSocketEvent<{ post: JobPost }>('new_post', (data) => {
+    if (!data?.post) return;
+    setPosts((prev) => {
+      if (prev.some((p) => p._id === data.post._id)) return prev;
+      return [data.post, ...prev];
+    });
+  }, isWorker);
 
   const displayedPosts = activeTab === 'recommended' ? recPosts : posts;
 
@@ -398,7 +408,9 @@ export default function PostsFeedScreen() {
       )}
 
       {loading || (activeTab === 'recommended' && recLoading) ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+        <SkeletonList count={4} variant="post" />
+      ) : error && displayedPosts.length === 0 ? (
+        <ErrorState message={error} onRetry={onRefresh} />
       ) : isDesktop ? (
         <ScrollView
           contentContainerStyle={styles.desktopGrid}

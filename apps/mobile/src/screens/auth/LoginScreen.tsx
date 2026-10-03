@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import axios from 'axios';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -17,21 +16,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../constants/colors';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { useLoginForm } from '../../hooks/useLoginForm';
 import { AuthStackParamList } from '../../navigation/types';
-import { login } from '../../services/authApi';
-import { useAuthStore } from '../../store/authStore';
 
 type Props = { navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'> };
 
 const { height: SCREEN_H } = Dimensions.get('window');
 
 export default function LoginScreen({ navigation }: Props) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { email, setEmail, password, setPassword, error, loading, submit: handleLogin } = useLoginForm();
   const [showPass, setShowPass] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const setAuth = useAuthStore((s) => s.setAuth);
   const { isDesktop } = useBreakpoint();
 
   // Animation refs
@@ -65,27 +59,6 @@ export default function LoginScreen({ navigation }: Props) {
       ]),
     ]).start();
   }, []);
-
-  async function handleLogin() {
-    setError('');
-    if (!email.trim() || !password) {
-      setError('נא למלא אימייל וסיסמה');
-      return;
-    }
-    setLoading(true);
-    try {
-      const { token, user } = await login(email.trim(), password);
-      setAuth(token, user);
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'שגיאת חיבור — בדוק אימייל וסיסמה');
-      } else {
-        setError('אירעה שגיאה, נסה שוב');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
 
   if (isDesktop) {
     return <DesktopLogin navigation={navigation} />;
@@ -213,24 +186,8 @@ export default function LoginScreen({ navigation }: Props) {
 // ── Desktop fallback (clean centered card) ──────────────────────────────────
 
 function DesktopLogin({ navigation }: Props) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const setAuth = useAuthStore((s) => s.setAuth);
-
-  async function handleLogin() {
-    setError('');
-    if (!email.trim() || !password) { setError('נא למלא אימייל וסיסמה'); return; }
-    setLoading(true);
-    try {
-      const { token, user } = await login(email.trim(), password);
-      setAuth(token, user);
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) setError(err.response?.data?.message || 'שגיאת חיבור');
-      else setError('אירעה שגיאה');
-    } finally { setLoading(false); }
-  }
+  // Same behaviour as the mobile layout, only the presentation differs
+  const { email, setEmail, password, setPassword, error, loading, submit: handleLogin } = useLoginForm();
 
   return (
     <View style={styles.desktopRoot}>

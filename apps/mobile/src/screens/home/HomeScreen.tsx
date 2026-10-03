@@ -4,7 +4,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Linking,
   Modal,
@@ -35,18 +34,12 @@ const MENU_ITEMS = [
   { id: 'privacy', icon: 'shield-checkmark-outline',   title: 'מדיניות פרטיות',   sub: 'איך אנחנו מגנים על המידע שלך' },
 ];
 
-function handleMenuAction(id: string) {
-  if (id === 'about') {
-    Alert.alert('קצת על הנדיל 🔨', 'הנדיל מחברת בין דיירים לבעלי מקצוע מנוסים באזורם.\nדירוגים אמיתיים, מחירים שקופים, עבודה מהירה.');
-  } else if (id === 'support') {
-    Alert.alert('תמיכה טכנית', 'אנחנו זמינים ראשון–חמישי 09:00–17:00.\nשלח מייל ל-support@handil.co.il');
-  } else if (id === 'contact') {
-    Linking.openURL('mailto:support@handil.co.il');
-  } else if (id === 'faq') {
-    Alert.alert('שאלות נפוצות', 'Q: כמה עולה השירות?\nA: בעלי מקצוע קובעים את התעריף שלהם.\n\nQ: איך מבטלים הזמנה?\nA: ניתן לבטל מתוך מסך ההזמנות.');
-  } else {
-    Alert.alert('בקרוב', 'תוכן זה יהיה זמין בקרוב.');
-  }
+/** Menu ids that open a real content screen rather than a mailto: link. */
+const INFO_TOPICS = ['about', 'support', 'faq', 'terms', 'privacy'] as const;
+type InfoTopicId = (typeof INFO_TOPICS)[number];
+
+function isInfoTopic(id: string): id is InfoTopicId {
+  return (INFO_TOPICS as readonly string[]).includes(id);
 }
 
 export default function HomeScreen() {
@@ -320,8 +313,16 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={item.id}
                 style={[styles.menuItem, idx === MENU_ITEMS.length - 1 && { borderBottomWidth: 0 }]}
-                onPress={() => { closeMenu(); setTimeout(() => handleMenuAction(item.id), 250); }}
+                onPress={() => {
+                  closeMenu();
+                  setTimeout(() => {
+                    if (isInfoTopic(item.id)) navigation.navigate('Info', { topic: item.id });
+                    else if (item.id === 'contact') Linking.openURL('mailto:support@handil.co.il');
+                  }, 250);
+                }}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={item.title}
               >
                 <View style={styles.menuItemIconWrap}>
                   <Ionicons name={item.icon as any} size={20} color={colors.primary} />

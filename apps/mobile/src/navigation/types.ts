@@ -35,6 +35,7 @@ export type PostsStackParamList = {
 
 export type HomeStackParamList = {
   Home: undefined;
+  Info: { topic: 'about' | 'support' | 'faq' | 'terms' | 'privacy' };
   WorkerList: { category: string; categoryName: string };
   WorkerDetail: { workerId: string; workerName: string };
   BookingRequest: { workerId: string; workerUserId: string; workerName: string; category?: string };

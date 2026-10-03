@@ -18,6 +18,7 @@ import { colors } from '../../constants/colors';
 import { ChatStackParamList } from '../../navigation/types';
 import { getMessages, sendMessageRest } from '../../services/chatApi';
 import { connectSocket, getSocket } from '../../services/socketClient';
+import { useSocketEvent } from '../../hooks/useSocketEvent';
 import { useAuthStore } from '../../store/authStore';
 import { ChatMessage } from '../../types';
 
@@ -33,6 +34,7 @@ export default function ChatScreen() {
   const [text, setText]         = useState('');
   const [loading, setLoading]   = useState(true);
   const [sending, setSending]   = useState(false);
+  const [sendError, setSendError] = useState('');
   const flatRef = useRef<FlatList>(null);
 
   // Load history
@@ -43,32 +45,48 @@ export default function ChatScreen() {
       .finally(() => setLoading(false));
   }, [params.conversationId]);
 
-  // Connect Socket.io and join the conversation room
+  // Join the conversation room for the lifetime of this screen
   useEffect(() => {
-    let mounted = true;
-    connectSocket().then((socket) => {
-      if (!mounted) return;
+    let cancelled = false;
 
-      socket.emit('join_conversation', { conversationId: params.conversationId });
-
-      socket.on('new_message', (msg: ChatMessage) => {
-        if (msg.conversation === params.conversationId) {
-          setMessages((prev) => [...prev, msg]);
-          // Mark as read
-          socket.emit('mark_read', { conversationId: params.conversationId });
-        }
-      });
-    });
+    connectSocket()
+      .then((socket) => {
+        if (cancelled) return;
+        socket.emit('join_conversation', { conversationId: params.conversationId });
+      })
+      .catch(() => {});
 
     return () => {
-      mounted = false;
-      const socket = getSocket();
-      if (socket) {
-        socket.emit('leave_conversation', { conversationId: params.conversationId });
-        socket.off('new_message');
-      }
+      cancelled = true;
+      getSocket()?.emit('leave_conversation', { conversationId: params.conversationId });
     };
   }, [params.conversationId]);
+
+  // Incoming messages. The server broadcasts to the whole room including the
+  // sender, so our own message comes back — it replaces the optimistic copy
+  // instead of being appended a second time.
+  useSocketEvent<ChatMessage>('new_message', (msg) => {
+    if (!msg || msg.conversation !== params.conversationId) return;
+
+    setMessages((prev) => {
+      if (prev.some((m) => m._id === msg._id)) return prev;
+
+      const isMine = msg.sender?._id === user?.id;
+      if (isMine) {
+        const pendingIndex = prev.findIndex(
+          (m) => m._id.startsWith('tmp_') && m.text === msg.text
+        );
+        if (pendingIndex !== -1) {
+          const next = [...prev];
+          next[pendingIndex] = msg;
+          return next;
+        }
+      }
+      return [...prev, msg];
+    });
+
+    getSocket()?.emit('mark_read', { conversationId: params.conversationId });
+  });
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -94,17 +112,32 @@ export default function ChatScreen() {
     };
     setMessages((prev) => [...prev, optimistic]);
 
+    /** Drops the optimistic bubble and puts the text back in the box. */
+    const failSend = (reason: string) => {
+      setMessages((prev) => prev.filter((m) => m._id !== optimistic._id));
+      setText((current) => (current.length === 0 ? trimmed : current));
+      setSendError(reason);
+    };
+
     try {
-      // Try Socket.io first
       const socket = getSocket();
       if (socket?.connected) {
-        socket.emit('send_message', { conversationId: params.conversationId, text: trimmed });
+        // The server acks with either the saved message or an error. Without
+        // reading it a rejected message used to sit in the thread looking sent.
+        socket.emit(
+          'send_message',
+          { conversationId: params.conversationId, text: trimmed },
+          (ack?: { error?: string; message?: ChatMessage }) => {
+            if (ack?.error) failSend(ack.error);
+            else setSendError('');
+          }
+        );
       } else {
-        // REST fallback
         await sendMessageRest(params.conversationId, trimmed);
+        setSendError('');
       }
-    } catch {
-      // keep the optimistic message even on error
+    } catch (err: any) {
+      failSend(err?.response?.data?.message ?? 'ההודעה לא נשלחה. בדוק את החיבור ונסה שוב');
     } finally {
       setSending(false);
     }

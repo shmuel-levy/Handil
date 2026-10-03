@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Linking,
@@ -16,6 +17,7 @@ import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { CATEGORIES } from '../../constants/categories';
 import { colors } from '../../constants/colors';
+import { updateMyProfile } from '../../services/authApi';
 import { getMyWorkerProfile, getWorker, updateWorkerProfile } from '../../services/workersApi';
 import { useAuthStore } from '../../store/authStore';
 import { WorkerProfile, WorkerStats } from '../../types';
@@ -23,11 +25,13 @@ import { WorkerProfile, WorkerStats } from '../../types';
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const updateUser = useAuthStore((s) => s.updateUser);
 
   const [workerProfile, setWorkerProfile] = useState<WorkerProfile | null>(null);
   const [workerStats, setWorkerStats] = useState<WorkerStats | null>(null);
   const [editing, setEditing] = useState(false);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<string | null>(user?.avatar || null);
+  const [photoSaving, setPhotoSaving] = useState(false);
   const [bio, setBio] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [yearsExp, setYearsExp] = useState('');
@@ -63,13 +67,31 @@ export default function ProfileScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      // MediaTypeOptions is deprecated in expo-image-picker 17
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
+      quality: 0.5,
+      base64: true,
     });
-    if (!result.canceled) {
-      setPhoto(result.assets[0].uri);
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+
+    // Show it straight away, then persist. Previously the picked photo only
+    // ever lived in local state and vanished on the next app launch.
+    const previous = photo;
+    setPhoto(dataUri);
+    setPhotoSaving(true);
+    try {
+      const { user: updated } = await updateMyProfile({ avatar: dataUri });
+      updateUser({ avatar: updated.avatar });
+    } catch (e: any) {
+      setPhoto(previous);
+      Alert.alert('שגיאה', e?.response?.data?.message ?? 'לא ניתן לשמור את התמונה');
+    } finally {
+      setPhotoSaving(false);
     }
   };
 
@@ -121,8 +143,17 @@ export default function ProfileScreen() {
                 <Text style={styles.avatarInitial}>{initial}</Text>
               </View>
             )}
-            <TouchableOpacity style={styles.cameraBtn} onPress={pickPhoto} activeOpacity={0.85}>
-              <Ionicons name="camera" size={16} color={colors.white} />
+            <TouchableOpacity
+              style={styles.cameraBtn}
+              onPress={pickPhoto}
+              activeOpacity={0.85}
+              disabled={photoSaving}
+              accessibilityRole="button"
+              accessibilityLabel="שינוי תמונת פרופיל"
+            >
+              {photoSaving
+                ? <ActivityIndicator size="small" color={colors.white} />
+                : <Ionicons name="camera" size={16} color={colors.white} />}
             </TouchableOpacity>
           </View>
 

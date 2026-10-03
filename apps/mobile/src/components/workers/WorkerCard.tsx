@@ -12,10 +12,14 @@ interface Props {
   style?: ViewStyle;
 }
 
+// These badges are self-declared by the worker — nothing is checked server
+// side — so the wording says "מסר" (provided), not "אומת" (verified).
+// Claiming platform verification for an unchecked tap would mislead residents
+// deciding who to let into their home.
 const BADGE_LABEL: Record<string, string> = {
-  phone: 'טלפון',
-  id: 'תז',
-  bank: 'בנק',
+  phone: 'מסר טלפון',
+  id: 'מסר ת״ז',
+  bank: 'מסר חשבון',
 };
 
 export default function WorkerCard({ worker, onPress, style }: Props) {
@@ -24,7 +28,17 @@ export default function WorkerCard({ worker, onPress, style }: Props) {
   const badges = worker.verificationBadges ?? [];
 
   return (
-    <TouchableOpacity style={[styles.card, style]} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity
+      style={[styles.card, style]}
+      onPress={onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={
+        `${worker.user.name}, ${category?.name_he ?? ''}, ` +
+        `דירוג ${worker.rating.toFixed(1)} מתוך 5, ${worker.reviewCount} ביקורות, ${worker.city}`
+      }
+      accessibilityHint="פתיחת פרופיל בעל המקצוע"
+    >
       <View style={styles.left}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{worker.user.name.charAt(0).toUpperCase()}</Text>
@@ -79,8 +93,8 @@ export default function WorkerCard({ worker, onPress, style }: Props) {
           <View style={styles.badgesRow}>
             {badges.map((b) => (
               <View key={b} style={styles.badge}>
-                <Ionicons name="shield-checkmark-outline" size={10} color={colors.success} />
-                <Text style={styles.badgeText}>אומת {BADGE_LABEL[b]}</Text>
+                <Ionicons name="person-outline" size={10} color={colors.textMuted} />
+                <Text style={styles.badgeText}>{BADGE_LABEL[b]}</Text>
               </View>
             ))}
           </View>
@@ -143,9 +157,9 @@ const styles = StyleSheet.create({
   badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 },
   badge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: colors.borderLight,
     paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
-    borderWidth: 1, borderColor: colors.success + '40',
+    borderWidth: 1, borderColor: colors.border,
   },
-  badgeText: { fontSize: 10, color: colors.success, fontWeight: '600' },
+  badgeText: { fontSize: 10, color: colors.textMuted, fontWeight: '600' },
 });

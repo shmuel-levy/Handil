@@ -22,6 +22,7 @@ import { CATEGORIES } from '../../constants/categories';
 import { colors } from '../../constants/colors';
 import { PostsStackParamList } from '../../navigation/types';
 import { createPost } from '../../services/postsApi';
+import { useAuthStore } from '../../store/authStore';
 import { logger } from '../../utils/logger';
 
 type Nav = NativeStackNavigationProp<PostsStackParamList>;
@@ -37,6 +38,7 @@ const URGENCY_OPTIONS: { value: Urgency; label: string; desc: string; color: str
 
 export default function CreatePostScreen() {
   const navigation = useNavigation<Nav>();
+  const user = useAuthStore((s) => s.user);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -83,7 +85,10 @@ export default function CreatePostScreen() {
         budget: budget ? Number(budget) : null,
         urgency,
         images,
-        location: 'תל אביב',
+        // The resident's own city — this used to be hardcoded to תל אביב, which
+        // mislabelled every post outside it and broke the worker matching that
+        // ranks jobs by city.
+        location: user?.city?.trim() || 'תל אביב',
       });
       setSubmitting(false);
       navigation.navigate('PostsFeed');

@@ -20,7 +20,7 @@ import { getCategoryBySlug } from '../../constants/categories';
 import { colors } from '../../constants/colors';
 import { PostsStackParamList } from '../../navigation/types';
 import { updateMyProfile } from '../../services/authApi';
-import { connectSocket } from '../../services/socketClient';
+import { useSocketEvent } from '../../hooks/useSocketEvent';
 import { acceptQuote, getJobQuotes, rejectQuote } from '../../services/quotesApi';
 import { useAuthStore } from '../../store/authStore';
 import { Quote } from '../../types';
@@ -71,20 +71,11 @@ export default function QuotesListScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Real-time: prepend new quotes as they arrive
-  useEffect(() => {
-    let mounted = true;
-    connectSocket().then((socket) => {
-      if (!mounted) return;
-      const handler = (data: { postId: string; quote: any }) => {
-        if (data.postId !== params.postId) return;
-        load();
-      };
-      socket.on('new_quote', handler);
-      return () => { socket.off('new_quote', handler); };
-    }).catch(() => {});
-    return () => { mounted = false; };
-  }, [params.postId]);
+  // Real-time: reload when a new quote arrives for this post
+  useSocketEvent<{ postId: string }>('new_quote', (data) => {
+    if (data?.postId !== params.postId) return;
+    load();
+  });
 
   const sorted = [...quotes].sort((a, b) => {
     if (sortBy === 'price')  return a.proposedPrice - b.proposedPrice;

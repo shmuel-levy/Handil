@@ -16,9 +16,11 @@ const Input = forwardRef<TextInput, Props>(({ label, error, style, ...rest }, re
         style={[styles.input, error ? styles.inputError : null, style]}
         placeholderTextColor={colors.textDisabled}
         textAlign="right"
+        accessibilityLabel={label ?? rest.placeholder}
+        accessibilityState={{ invalid: !!error } as any}
         {...rest}
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
     </View>
   );
 });
