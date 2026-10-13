@@ -22,7 +22,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1F2226"
+        "backgroundColor": "#FFC629"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -44,6 +44,12 @@
           "microphonePermission": false
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c32124fe-088d-44ea-a23a-2745a3e2393d"
+      }
+    },
+    "owner": "shmuelgo"
   }
 }
