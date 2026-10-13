@@ -11,12 +11,12 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://YOUR_API_URL/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://handil.onrender.com/api"
       }
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://YOUR_API_URL/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://handil.onrender.com/api"
       },
       "autoIncrement": true
     }
