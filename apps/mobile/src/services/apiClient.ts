@@ -38,9 +38,15 @@ function resolveApiBaseUrl(): string {
     return 'http://localhost:4000/api'; // unreachable in practice; satisfies type
   }
 
-  // Dev web: browser and server share the same machine, so localhost always works.
+  // Dev web: the API runs on the same machine that serves the page, so use the
+  // host the page was opened from. That is localhost on the dev machine, and
+  // the dev machine's LAN IP when a phone opens http://<LAN-IP>:8082 — a fixed
+  // `localhost` would point the phone at itself.
   // Do NOT use the env var here — it may hold a LAN IP meant for mobile devices.
-  if (Platform.OS === 'web') return 'http://localhost:4000/api';
+  if (Platform.OS === 'web') {
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    return `http://${host || 'localhost'}:4000/api`;
+  }
 
   // Dev native: auto-detect the dev machine IP from the Expo Go / Metro host.
   // This updates automatically on every session, so .env rarely needs touching.
