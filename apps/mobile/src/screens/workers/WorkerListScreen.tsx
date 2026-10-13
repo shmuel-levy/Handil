@@ -3,7 +3,6 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -13,10 +12,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ErrorState from '../../components/common/ErrorState';
+import { SkeletonList } from '../../components/common/Skeleton';
 import WorkerCard from '../../components/workers/WorkerCard';
 import { CATEGORIES } from '../../constants/categories';
 import { colors } from '../../constants/colors';
+import { plateEdge, radius } from '../../constants/theme';
 import { HomeStackParamList, SearchStackParamList } from '../../navigation/types';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getWorkers } from '../../services/workersApi';
 import { WorkerProfile } from '../../types';
 
@@ -32,25 +35,31 @@ export default function WorkerListScreen() {
   const [workers, setWorkers] = useState<WorkerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  // Wait for typing to settle before hitting the API
+  const debouncedQuery = useDebouncedValue(query, 350);
 
   const fetchWorkers = useCallback(
     async (refresh = false) => {
       if (refresh) setRefreshing(true);
       else setLoading(true);
+      setError('');
       try {
         const { workers: data } = await getWorkers({
           category: selectedCategory || undefined,
-          q: query || undefined,
+          q: debouncedQuery.trim() || undefined,
         });
         setWorkers(data);
-      } catch {
+      } catch (e: any) {
         setWorkers([]);
+        setError(e?.response?.data?.message ?? 'לא הצלחנו לטעון את בעלי המקצוע. נסו שוב');
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [selectedCategory, query]
+    [selectedCategory, debouncedQuery]
   );
 
   useEffect(() => {
@@ -58,12 +67,11 @@ export default function WorkerListScreen() {
   }, [fetchWorkers]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    // Both stacks that show this screen render a header, which already covers
+    // the top inset and the back button — the duplicates used to sit under it.
+    <SafeAreaView style={styles.safe} edges={[]}>
       {/* Search bar */}
       <View style={styles.searchRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-forward" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={16} color={colors.textMuted} />
           <TextInput
@@ -73,6 +81,8 @@ export default function WorkerListScreen() {
             value={query}
             onChangeText={setQuery}
             textAlign="right"
+            accessibilityLabel="חיפוש בעל מקצוע לפי שם"
+            returnKeyType="search"
           />
           {query ? (
             <TouchableOpacity onPress={() => setQuery('')}>
@@ -97,11 +107,14 @@ export default function WorkerListScreen() {
               style={[styles.chip, active && styles.chipActive]}
               onPress={() => setSelectedCategory(item.slug)}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={item.name_he}
             >
               <Ionicons
                 name={item.icon as any}
                 size={13}
-                color={active ? '#fff' : colors.primary}
+                color={active ? colors.asphalt : colors.steel}
               />
               <Text
                 style={[styles.chipText, active && styles.chipTextActive]}
@@ -116,7 +129,9 @@ export default function WorkerListScreen() {
 
       {/* Results */}
       {loading ? (
-        <ActivityIndicator style={styles.loader} color={colors.primary} size="large" />
+        <SkeletonList count={5} variant="worker" />
+      ) : error ? (
+        <ErrorState message={error} onRetry={() => fetchWorkers()} />
       ) : (
         <FlatList
           style={{ flex: 1 }}
@@ -152,45 +167,40 @@ export default function WorkerListScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: colors.asphalt,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 10,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
-  backBtn: { padding: 4 },
   searchBar: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
     gap: 8,
+    ...plateEdge(colors.primary, 3),
   },
   searchInput: { flex: 1, fontSize: 14, color: colors.textPrimary, padding: 0 },
-  chipScroll: { height: 52, marginBottom: 4 },
-  chipRow: { paddingHorizontal: 16, paddingBottom: 10, gap: 4, alignItems: 'center' },
+  chipScroll: { height: 54, flexGrow: 0, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  chipRow: { paddingHorizontal: 16, gap: 6, alignItems: 'center' },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 11,
     paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
     borderWidth: 1.5,
     borderColor: colors.border,
   },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  chipTextActive: { color: colors.white },
-  loader: { marginTop: 40 },
-  list: { paddingHorizontal: 16, paddingBottom: 20 },
+  chipActive: { backgroundColor: colors.hazard, borderColor: colors.asphalt },
+  chipText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+  chipTextActive: { color: colors.asphalt, fontWeight: '900' },
+  list: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 20 },
   empty: { alignItems: 'center', paddingTop: 60 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.textSecondary, marginTop: 16 },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: colors.textSecondary, marginTop: 16 },
   emptySubtitle: { fontSize: 13, color: colors.textMuted, marginTop: 6, textAlign: 'center' },
 });

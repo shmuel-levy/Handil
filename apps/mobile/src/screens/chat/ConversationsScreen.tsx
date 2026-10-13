@@ -12,8 +12,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ErrorState from '../../components/common/ErrorState';
+import { SkeletonList } from '../../components/common/Skeleton';
+import HazardStripe from '../../components/site/HazardStripe';
 import { colors } from '../../constants/colors';
 import { ChatStackParamList } from '../../navigation/types';
+import { useSocketEvent } from '../../hooks/useSocketEvent';
 import { getMyConversations } from '../../services/chatApi';
 import { useAuthStore } from '../../store/authStore';
 import { Conversation } from '../../types';
@@ -27,13 +31,20 @@ export default function ConversationsScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading]             = useState(true);
   const [refreshing, setRefreshing]       = useState(false);
+  const [error, setError]                 = useState('');
 
   const load = useCallback(async () => {
+    setError('');
     try {
       const { conversations: c } = await getMyConversations();
       setConversations(c);
-    } catch {}
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? 'לא הצלחנו לטעון את השיחות');
+    }
   }, []);
+
+  // Keep the list live — a new message used to require pull-to-refresh
+  useSocketEvent('conversation_updated', () => { load(); });
 
   useFocusEffect(
     useCallback(() => {
@@ -78,10 +89,15 @@ export default function ConversationsScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>הודעות</Text>
+        <Text style={styles.headerSub}>שיחות עם לקוחות ובעלי מקצוע</Text>
       </View>
+      <HazardStripe height={6} stripe={9} />
 
+      <View style={styles.body}>
       {loading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+        <SkeletonList count={5} variant="worker" />
+      ) : error && conversations.length === 0 ? (
+        <ErrorState message={error} onRetry={load} />
       ) : (
         <FlatList
           data={conversations}
@@ -92,7 +108,13 @@ export default function ConversationsScreen() {
             const other = item.participants.find((p) => p._id !== user?.id);
             const unread = getUnread(item);
             return (
-              <TouchableOpacity style={styles.row} onPress={() => openChat(item)} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => openChat(item)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`שיחה עם ${other?.name ?? 'משתמש'}${unread > 0 ? `, ${unread} הודעות שלא נקראו` : ''}`}
+              >
                 {/* Avatar */}
                 <View style={styles.avatarWrap}>
                   <View style={[styles.avatar, unread > 0 && styles.avatarActive]}>
@@ -142,17 +164,20 @@ export default function ConversationsScreen() {
           }
         />
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: colors.asphalt },
+  body: { flex: 1, backgroundColor: colors.background },
   header: {
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14,
-    borderBottomWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+    backgroundColor: colors.asphalt,
   },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: colors.textPrimary, textAlign: 'right' },
+  headerTitle: { fontSize: 22, fontWeight: '900', color: colors.onAsphalt, textAlign: 'right' },
+  headerSub: { fontSize: 12, color: colors.onAsphaltMuted, textAlign: 'right', marginTop: 2 },
   list: { paddingVertical: 8 },
   row: {
     flexDirection: 'row', alignItems: 'center',

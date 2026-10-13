@@ -14,9 +14,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BlueprintGrid from '../../components/site/BlueprintGrid';
+import HazardStripe from '../../components/site/HazardStripe';
 import StarRating from '../../components/workers/StarRating';
 import { getCategoryBySlug } from '../../constants/categories';
 import { colors } from '../../constants/colors';
+import { plateEdge, radius } from '../../constants/theme';
 import { HomeStackParamList } from '../../navigation/types';
 import { getWorker } from '../../services/workersApi';
 import { useAuthStore } from '../../store/authStore';
@@ -83,6 +86,7 @@ export default function WorkerDetailScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: canBook ? 90 : 20 }}>
         {/* ── Hero ── */}
         <View style={styles.hero}>
+          <BlueprintGrid />
           <View style={styles.avatarWrap}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{worker.user.name.charAt(0).toUpperCase()}</Text>
@@ -94,7 +98,7 @@ export default function WorkerDetailScreen() {
             )}
           </View>
           <Text style={styles.workerName}>{worker.user.name}</Text>
-          <StarRating rating={worker.rating} reviewCount={worker.reviewCount} size={14} />
+          <StarRating rating={worker.rating} reviewCount={worker.reviewCount} size={14} textColor={colors.onAsphaltMuted} />
 
           <View style={styles.heroChips}>
             {worker.isAvailable && (
@@ -105,18 +109,19 @@ export default function WorkerDetailScreen() {
             )}
             {worker.isVerified && (
               <View style={[styles.chip, styles.chipBlue]}>
-                <Ionicons name="shield-checkmark-outline" size={11} color={colors.primary} />
-                <Text style={[styles.chipText, { color: colors.primary }]}>בעל מקצוע מאומת</Text>
+                <Ionicons name="shield-checkmark-outline" size={11} color={colors.asphalt} />
+                <Text style={[styles.chipText, { color: colors.asphalt }]}>בעל מקצוע מאומת</Text>
               </View>
             )}
             {worker.offersTeaching && (
               <View style={[styles.chip, styles.chipPurple]}>
-                <Ionicons name="school-outline" size={11} color="#7C3AED" />
-                <Text style={[styles.chipText, { color: '#7C3AED' }]}>מדריך</Text>
+                <Ionicons name="school-outline" size={11} color={colors.blueprint} />
+                <Text style={[styles.chipText, { color: colors.blueprint }]}>מדריך</Text>
               </View>
             )}
           </View>
         </View>
+        <HazardStripe height={8} stripe={12} />
 
         {/* ── Basic stats row ── */}
         <View style={styles.statsRow}>
@@ -207,7 +212,7 @@ export default function WorkerDetailScreen() {
         {worker.offersTeaching && (
           <View style={styles.teachingBanner}>
             <View style={styles.teachingIconWrap}>
-              <Ionicons name="school" size={20} color="#7C3AED" />
+              <Ionicons name="school" size={20} color={colors.blueprint} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.teachingTitle}>מציע שירות הדרכה</Text>
@@ -385,32 +390,34 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    backgroundColor: colors.surface, alignItems: 'center',
+    backgroundColor: colors.asphalt, alignItems: 'center',
     paddingVertical: 24, paddingHorizontal: 20,
-    borderBottomWidth: 1, borderColor: colors.border,
+    overflow: 'hidden',
   },
   avatarWrap: { position: 'relative', marginBottom: 10 },
   avatar: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    // Square ID badge, matching the worker cards
+    width: 84, height: 84, borderRadius: radius.lg,
+    backgroundColor: colors.hazard, alignItems: 'center', justifyContent: 'center',
+    ...plateEdge(colors.hazardDark, 5),
   },
-  avatarText: { fontSize: 30, fontWeight: '800', color: colors.white },
+  avatarText: { fontSize: 34, fontWeight: '900', color: colors.asphalt },
   verifiedBadge: {
     position: 'absolute', bottom: 2, end: 2,
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: colors.success,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: colors.surface,
+    borderWidth: 2, borderColor: colors.asphalt,
   },
-  workerName: { fontSize: 22, fontWeight: '800', color: colors.textPrimary, marginBottom: 6 },
+  workerName: { fontSize: 24, fontWeight: '900', color: colors.onAsphalt, marginBottom: 6 },
   heroChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10, justifyContent: 'center' },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: radius.sm,
   },
   chipGreen:  { backgroundColor: colors.successLight },
-  chipBlue:   { backgroundColor: colors.primaryLight },
-  chipPurple: { backgroundColor: '#F5F3FF' },
+  chipBlue:   { backgroundColor: colors.hazard },
+  chipPurple: { backgroundColor: colors.blueprintLight },
   chipText:   { fontSize: 11, fontWeight: '700' },
   greenDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
 
@@ -465,12 +472,12 @@ const styles = StyleSheet.create({
   teachingBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     marginHorizontal: 20, marginBottom: 16,
-    backgroundColor: '#F5F3FF', borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: '#DDD6FE',
+    backgroundColor: colors.blueprintLight, borderRadius: 8, padding: 14,
+    borderWidth: 1, borderColor: colors.blueprint + '40',
   },
-  teachingIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center' },
-  teachingTitle: { fontSize: 13, fontWeight: '700', color: '#5B21B6', textAlign: 'right', marginBottom: 2 },
-  teachingSub: { fontSize: 12, color: '#6D28D9', textAlign: 'right', lineHeight: 18 },
+  teachingIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  teachingTitle: { fontSize: 13, fontWeight: '700', color: colors.blueprint, textAlign: 'right', marginBottom: 2 },
+  teachingSub: { fontSize: 12, color: colors.steel, textAlign: 'right', lineHeight: 18 },
 
   // Verification badges
   verifyRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -523,9 +530,8 @@ const styles = StyleSheet.create({
   },
   bookBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: colors.primary, paddingVertical: 14, borderRadius: 14,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25, shadowRadius: 6, elevation: 3,
+    backgroundColor: colors.primary, paddingVertical: 14, borderRadius: radius.md,
+    ...plateEdge(colors.primaryDark, 4),
   },
   bookBtnText: { color: colors.white, fontSize: 15, fontWeight: '700' },
 });

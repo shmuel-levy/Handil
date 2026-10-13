@@ -1,16 +1,35 @@
-const express = require('express');
+const express  = require('express');
+const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
+const User    = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 const { getIO } = require('../socket');
+const { schemas, WORKER_BOOKING_STATUSES, RESIDENT_BOOKING_STATUSES } = require('@handil/shared');
+const { serverError } = require('../utils/serverError');
+const { objectIdParam } = require('../middleware/objectIdParam');
+
+const FINAL_BOOKING_STATUSES = ['completed', 'rejected', 'cancelled'];
 
 const router = express.Router();
 
+router.param('id', objectIdParam('הזמנה לא נמצאה'));
+
 // POST /api/bookings
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, validate(schemas.createBookingSchema), async (req, res) => {
   try {
     if (req.user.role !== 'resident') return res.status(403).json({ message: 'דיירים בלבד' });
     const { workerUserId, category, description, scheduledDate } = req.body;
-    if (!workerUserId || !category) return res.status(400).json({ message: 'שדות חובה חסרים' });
+
+    // Without this a booking could be addressed to any id at all — another
+    // resident, or a user that does not exist — and would sit pending forever.
+    if (!mongoose.isValidObjectId(workerUserId)) {
+      return res.status(400).json({ message: 'מזהה בעל מקצוע לא תקין' });
+    }
+    const workerUser = await User.findById(workerUserId).select('role');
+    if (!workerUser || workerUser.role !== 'worker') {
+      return res.status(404).json({ message: 'בעל מקצוע לא נמצא' });
+    }
 
     const booking = await Booking.create({
       resident: req.user._id,
@@ -22,7 +41,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     res.status(201).json({ booking });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -41,7 +60,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({ bookings });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -60,12 +79,12 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     res.json({ booking });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
 // PATCH /api/bookings/:id/status
-router.patch('/:id/status', authMiddleware, async (req, res) => {
+router.patch('/:id/status', authMiddleware, validate(schemas.updateBookingStatusSchema), async (req, res) => {
   try {
     const { status } = req.body;
     const booking = await Booking.findById(req.params.id);
@@ -76,8 +95,14 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
 
     if (!isWorker && !isResident) return res.status(403).json({ message: 'אין גישה' });
 
-    const workerStatuses = ['accepted', 'rejected', 'completed'];
-    const residentStatuses = ['cancelled'];
+    // Finished bookings are final. Otherwise a worker could "complete" a job the
+    // resident had cancelled — which would then unlock a review for it.
+    if (FINAL_BOOKING_STATUSES.includes(booking.status)) {
+      return res.status(400).json({ message: 'לא ניתן לשנות הזמנה שהסתיימה' });
+    }
+
+    const workerStatuses = WORKER_BOOKING_STATUSES;
+    const residentStatuses = RESIDENT_BOOKING_STATUSES;
 
     if (isWorker && !workerStatuses.includes(status)) {
       return res.status(400).json({ message: 'סטטוס לא חוקי לעובד' });
@@ -104,7 +129,7 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
 
     res.json({ booking });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 

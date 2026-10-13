@@ -13,11 +13,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import HazardStripe from '../../components/site/HazardStripe';
 import { colors } from '../../constants/colors';
 import { ChatStackParamList } from '../../navigation/types';
 import { getMessages, sendMessageRest } from '../../services/chatApi';
 import { connectSocket, getSocket } from '../../services/socketClient';
+import { useSocketEvent } from '../../hooks/useSocketEvent';
 import { useAuthStore } from '../../store/authStore';
 import { ChatMessage } from '../../types';
 
@@ -28,11 +30,13 @@ export default function ChatScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
   const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText]         = useState('');
   const [loading, setLoading]   = useState(true);
   const [sending, setSending]   = useState(false);
+  const [sendError, setSendError] = useState('');
   const flatRef = useRef<FlatList>(null);
 
   // Load history
@@ -43,32 +47,48 @@ export default function ChatScreen() {
       .finally(() => setLoading(false));
   }, [params.conversationId]);
 
-  // Connect Socket.io and join the conversation room
+  // Join the conversation room for the lifetime of this screen
   useEffect(() => {
-    let mounted = true;
-    connectSocket().then((socket) => {
-      if (!mounted) return;
+    let cancelled = false;
 
-      socket.emit('join_conversation', { conversationId: params.conversationId });
-
-      socket.on('new_message', (msg: ChatMessage) => {
-        if (msg.conversation === params.conversationId) {
-          setMessages((prev) => [...prev, msg]);
-          // Mark as read
-          socket.emit('mark_read', { conversationId: params.conversationId });
-        }
-      });
-    });
+    connectSocket()
+      .then((socket) => {
+        if (cancelled) return;
+        socket.emit('join_conversation', { conversationId: params.conversationId });
+      })
+      .catch(() => {});
 
     return () => {
-      mounted = false;
-      const socket = getSocket();
-      if (socket) {
-        socket.emit('leave_conversation', { conversationId: params.conversationId });
-        socket.off('new_message');
-      }
+      cancelled = true;
+      getSocket()?.emit('leave_conversation', { conversationId: params.conversationId });
     };
   }, [params.conversationId]);
+
+  // Incoming messages. The server broadcasts to the whole room including the
+  // sender, so our own message comes back — it replaces the optimistic copy
+  // instead of being appended a second time.
+  useSocketEvent<ChatMessage>('new_message', (msg) => {
+    if (!msg || msg.conversation !== params.conversationId) return;
+
+    setMessages((prev) => {
+      if (prev.some((m) => m._id === msg._id)) return prev;
+
+      const isMine = msg.sender?._id === user?.id;
+      if (isMine) {
+        const pendingIndex = prev.findIndex(
+          (m) => m._id.startsWith('tmp_') && m.text === msg.text
+        );
+        if (pendingIndex !== -1) {
+          const next = [...prev];
+          next[pendingIndex] = msg;
+          return next;
+        }
+      }
+      return [...prev, msg];
+    });
+
+    getSocket()?.emit('mark_read', { conversationId: params.conversationId });
+  });
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -94,17 +114,32 @@ export default function ChatScreen() {
     };
     setMessages((prev) => [...prev, optimistic]);
 
+    /** Drops the optimistic bubble and puts the text back in the box. */
+    const failSend = (reason: string) => {
+      setMessages((prev) => prev.filter((m) => m._id !== optimistic._id));
+      setText((current) => (current.length === 0 ? trimmed : current));
+      setSendError(reason);
+    };
+
     try {
-      // Try Socket.io first
       const socket = getSocket();
       if (socket?.connected) {
-        socket.emit('send_message', { conversationId: params.conversationId, text: trimmed });
+        // The server acks with either the saved message or an error. Without
+        // reading it a rejected message used to sit in the thread looking sent.
+        socket.emit(
+          'send_message',
+          { conversationId: params.conversationId, text: trimmed },
+          (ack?: { error?: string; message?: ChatMessage }) => {
+            if (ack?.error) failSend(ack.error);
+            else setSendError('');
+          }
+        );
       } else {
-        // REST fallback
         await sendMessageRest(params.conversationId, trimmed);
+        setSendError('');
       }
-    } catch {
-      // keep the optimistic message even on error
+    } catch (err: any) {
+      failSend(err?.response?.data?.message ?? 'ההודעה לא נשלחה. בדוק את החיבור ונסה שוב');
     } finally {
       setSending(false);
     }
@@ -115,11 +150,18 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    // The dark header pads the top inset itself so the bottom inset (under the
+    // input bar) keeps the light background
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-forward" size={22} color={colors.textPrimary} />
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-forward" size={22} color={colors.hazard} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={styles.headerAvatar}>
@@ -129,13 +171,14 @@ export default function ChatScreen() {
             <Text style={styles.headerName}>{params.otherUserName}</Text>
             {params.jobPostTitle && (
               <Text style={styles.headerSub} numberOfLines={1}>
-                <Ionicons name="briefcase-outline" size={10} color={colors.textMuted} />
+                <Ionicons name="briefcase-outline" size={10} color={colors.onAsphaltMuted} />
                 {' '}{params.jobPostTitle}
               </Text>
             )}
           </View>
         </View>
       </View>
+      <HazardStripe height={5} stripe={8} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -236,18 +279,18 @@ const styles = StyleSheet.create({
   // Header
   header: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderColor: colors.border, gap: 12,
+    backgroundColor: colors.asphalt, paddingHorizontal: 16, paddingBottom: 12,
+    gap: 12,
   },
   backBtn: { padding: 4 },
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerAvatar: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    width: 38, height: 38, borderRadius: 6,
+    backgroundColor: colors.hazard, alignItems: 'center', justifyContent: 'center',
   },
-  headerAvatarText: { fontSize: 15, fontWeight: '800', color: colors.white },
-  headerName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, textAlign: 'right' },
-  headerSub: { fontSize: 11, color: colors.textMuted },
+  headerAvatarText: { fontSize: 15, fontWeight: '900', color: colors.asphalt },
+  headerName: { fontSize: 16, fontWeight: '800', color: colors.onAsphalt, textAlign: 'right' },
+  headerSub: { fontSize: 11, color: colors.onAsphaltMuted },
 
   // Messages
   msgList: { paddingHorizontal: 12, paddingVertical: 16, gap: 4 },

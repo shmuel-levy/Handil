@@ -4,6 +4,7 @@ const os        = require("os");
 const mongoose  = require("mongoose");
 const app       = require("./app");
 const { initSocket } = require("./socket");
+const { validateEnv } = require("./config");
 
 const PORT      = process.env.PORT || 4000;
 const MONGO_URI = process.env.MONGO_URI;
@@ -23,6 +24,9 @@ function getLanIPs() {
 
 async function startServer() {
   try {
+    // Fail fast on bad configuration, before the server accepts any traffic
+    for (const warning of validateEnv()) console.warn(`⚠️  ${warning}`);
+
     if (MONGO_URI) {
       await mongoose.connect(MONGO_URI);
       console.log("✅ MongoDB connected");

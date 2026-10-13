@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { useAuthStore } from '../store/authStore';
 import { logger } from '../utils/logger';
 
 // ── Host detection ────────────────────────────────────────────────────────────
@@ -114,6 +115,16 @@ apiClient.interceptors.response.use(
     const url =
       (error.config?.baseURL ?? '') + (error.config?.url ?? '');
     logger.api.error(url, error);
+
+    // An expired or revoked token used to leave the user stranded: every
+    // screen showed an error and nothing sent them back to sign in. Login and
+    // register answer 401 for wrong credentials, so those are left alone.
+    const path = error.config?.url ?? '';
+    const sentToken = !!error.config?.headers?.Authorization;
+    if (error.response?.status === 401 && sentToken && !/\/auth\/(login|register)$/.test(path)) {
+      useAuthStore.getState().logout();
+    }
+
     return Promise.reject(error);
   },
 );

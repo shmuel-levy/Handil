@@ -29,11 +29,6 @@ export async function createPost(data: {
   return res.data as { post: JobPost };
 }
 
-export async function acceptPost(id: string) {
-  const res = await apiClient.post(`/posts/${id}/accept`);
-  return res.data as { post: JobPost };
-}
-
 export async function closePost(id: string) {
   const res = await apiClient.post(`/posts/${id}/close`);
   return res.data as { post: JobPost };

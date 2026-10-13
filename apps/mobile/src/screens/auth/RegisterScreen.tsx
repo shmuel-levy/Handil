@@ -13,7 +13,11 @@ import {
 } from 'react-native';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BlueprintGrid from '../../components/site/BlueprintGrid';
+import HazardStripe from '../../components/site/HazardStripe';
 import { colors } from '../../constants/colors';
+import { leadingEdge, plateEdge, radius } from '../../constants/theme';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { AuthStackParamList } from '../../navigation/types';
 import { register } from '../../services/authApi';
@@ -35,6 +39,8 @@ export default function RegisterScreen({ navigation }: Props) {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
   const { isDesktop }           = useBreakpoint();
+  // The dark header used to start under the status bar / notch
+  const insets                  = useSafeAreaInsets();
 
   async function handleRegister() {
     setError('');
@@ -69,12 +75,15 @@ export default function RegisterScreen({ navigation }: Props) {
               style={[styles.roleCard, role === r.value && styles.roleCardActive]}
               onPress={() => setRole(r.value)}
               activeOpacity={0.8}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: role === r.value }}
+              accessibilityLabel={r.title}
             >
               <View style={[styles.roleIconWrap, role === r.value && styles.roleIconWrapActive]}>
                 <Ionicons
                   name={r.icon as any}
                   size={26}
-                  color={role === r.value ? colors.white : colors.primary}
+                  color={role === r.value ? colors.asphalt : colors.steel}
                 />
               </View>
               <Text style={[styles.roleTitle, role === r.value && styles.roleTitleActive]}>
@@ -144,24 +153,31 @@ export default function RegisterScreen({ navigation }: Props) {
 
   // ── Mobile layout ───────────────────────────────────────────────────────────
   return (
-    <KeyboardAvoidingView style={[styles.flex, { backgroundColor: '#0F172A' }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={[styles.flex, { backgroundColor: colors.asphalt }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
         {/* Dark header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.headerBackBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-forward" size={22} color={colors.white} />
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          <BlueprintGrid />
+          <TouchableOpacity
+            style={styles.headerBackBtn}
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="חזרה"
+          >
+            <Ionicons name="arrow-forward" size={22} color={colors.hazard} />
           </TouchableOpacity>
 
           <View style={styles.headerLogoWrap}>
             <View style={styles.headerLogo}>
-              <Ionicons name="hammer" size={26} color={colors.white} />
+              <Ionicons name="hammer" size={26} color={colors.asphalt} />
             </View>
           </View>
 
           <Text style={styles.title}>יצירת חשבון</Text>
           <Text style={styles.subtitle}>הצטרפו לקהילת הנדיל — בחינם לחלוטין</Text>
         </View>
+        <HazardStripe height={10} stripe={14} />
 
         {/* White form card */}
         <View style={styles.body}>
@@ -180,33 +196,30 @@ const styles = StyleSheet.create({
 
   // Dark header
   header: {
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.asphalt,
     paddingTop: 16,
-    paddingBottom: 44,
+    paddingBottom: 28,
     paddingHorizontal: 24,
+    overflow: 'hidden',
   },
   headerBackBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
+    width: 42, height: 42, borderRadius: radius.md,
+    backgroundColor: colors.asphaltSoft,
+    borderWidth: 1, borderColor: colors.asphaltLine,
     alignItems: 'center', justifyContent: 'center',
     alignSelf: 'flex-end', marginBottom: 20,
   },
   headerLogoWrap: { alignItems: 'flex-end', marginBottom: 16 },
   headerLogo: {
-    width: 56, height: 56, borderRadius: 18,
-    backgroundColor: colors.primary,
+    width: 56, height: 56, borderRadius: radius.lg,
+    backgroundColor: colors.hazard,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4, shadowRadius: 14, elevation: 8,
+    ...plateEdge(colors.hazardDark, 4),
   },
 
   // White body
   body: {
     backgroundColor: colors.background,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    marginTop: -24,
     paddingHorizontal: 24,
     paddingTop: 32,
     paddingBottom: 40,
@@ -217,18 +230,18 @@ const styles = StyleSheet.create({
   containerDesktop: { alignItems: 'center', paddingHorizontal: 0, paddingVertical: 24 },
   desktopInner: { width: 520 },
   backBtn: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 42, height: 42, borderRadius: radius.md,
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
     alignSelf: 'flex-end', marginBottom: 24,
   },
 
   title: {
-    fontSize: 28, fontWeight: '900', color: colors.white,
+    fontSize: 28, fontWeight: '900', color: colors.onAsphalt,
     textAlign: 'right', marginBottom: 6,
   },
   subtitle: {
-    fontSize: 14, color: 'rgba(255,255,255,0.65)',
+    fontSize: 14, color: colors.onAsphaltMuted,
     textAlign: 'right', lineHeight: 22,
   },
 
@@ -241,28 +254,32 @@ const styles = StyleSheet.create({
   roleRow: { flexDirection: 'row', gap: 12 },
   roleCard: {
     flex: 1, backgroundColor: colors.surface,
-    borderRadius: 18, padding: 18, alignItems: 'center',
+    borderRadius: radius.lg, padding: 18, alignItems: 'center',
     borderWidth: 2, borderColor: colors.border,
+    ...plateEdge(colors.border, 4),
     position: 'relative',
   },
-  roleCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  roleCardActive: {
+    borderColor: colors.asphalt, backgroundColor: colors.hazardLight,
+    ...plateEdge(colors.asphalt, 4),
+  },
   roleIconWrap: {
-    width: 52, height: 52, borderRadius: 15,
-    backgroundColor: colors.primaryLight,
+    width: 52, height: 52, borderRadius: radius.md,
+    backgroundColor: colors.background,
     alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
-  roleIconWrapActive: { backgroundColor: colors.primary },
+  roleIconWrapActive: { backgroundColor: colors.hazard },
   roleTitle: {
     fontSize: 16, fontWeight: '800', color: colors.textSecondary, marginBottom: 4,
   },
-  roleTitleActive: { color: colors.primaryDark },
+  roleTitleActive: { color: colors.asphalt },
   roleSubtitle: {
     fontSize: 12, color: colors.textMuted, textAlign: 'center', lineHeight: 18,
   },
   roleCheck: {
     position: 'absolute', top: 10, left: 10,
-    width: 22, height: 22, borderRadius: 11,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    width: 22, height: 22, borderRadius: radius.sm,
+    backgroundColor: colors.asphalt, alignItems: 'center', justifyContent: 'center',
   },
 
   // Fields
@@ -272,7 +289,8 @@ const styles = StyleSheet.create({
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: colors.errorLight,
-    padding: 13, borderRadius: 12, marginBottom: 12,
+    padding: 13, borderRadius: radius.md, marginBottom: 12,
+    ...leadingEdge(colors.error, 4),
   },
   errorText: { color: colors.error, fontSize: 13, flex: 1, textAlign: 'right' },
 

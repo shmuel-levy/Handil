@@ -1,11 +1,23 @@
-const router = require('express').Router();
+const router  = require('express').Router();
 const JobPost = require('../models/JobPost');
 const Worker  = require('../models/Worker');
 const auth    = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 const { getIO } = require('../socket');
+const {
+  schemas, URGENT_TTL_MS, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE,
+} = require('@handil/shared');
+const { serverError } = require('../utils/serverError');
+const { objectIdParam } = require('../middleware/objectIdParam');
+
+router.param('id', objectIdParam('פוסט לא נמצא'));
 
 const URGENCY_SCORE = { urgent: 4, today: 3, week: 2, flexible: 1 };
-const URGENT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Job posts can carry base64 images. They are never needed in a list view, so
+// list endpoints exclude them — otherwise every feed refresh downloads every
+// image on every post.
+const LIST_EXCLUDE = '-images';
 
 function sortByUrgency(posts) {
   return posts.sort(
@@ -37,15 +49,12 @@ async function expireUrgentPosts() {
 }
 
 // ─── POST /api/posts ──────────────────────────────────────────────────────────
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, validate(schemas.createPostSchema), async (req, res) => {
   try {
     if (req.user.role !== 'resident') {
       return res.status(403).json({ message: 'רק תושבים יכולים לפרסם עבודות' });
     }
     const { title, description, category, budget, images, urgency, location } = req.body;
-    if (!title || !category) {
-      return res.status(400).json({ message: 'כותרת וקטגוריה הם שדות חובה' });
-    }
 
     const resolvedUrgency = urgency || 'flexible';
     const urgencyExpiresAt =
@@ -83,7 +92,7 @@ router.post('/', auth, async (req, res) => {
 
     res.status(201).json({ post });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -130,6 +139,7 @@ router.get('/recommended', auth, async (req, res) => {
     for (const filter of filters) {
       const query = withExpiryFilter(filter);
       const found = await JobPost.find(query)
+        .select(LIST_EXCLUDE)
         .populate('resident', 'name avatar')
         .sort({ createdAt: -1 })
         .limit(30);
@@ -145,7 +155,7 @@ router.get('/recommended', auth, async (req, res) => {
 
     res.json({ posts: sortByUrgency(posts), total: posts.length, isPersonalized });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -153,6 +163,7 @@ router.get('/recommended', auth, async (req, res) => {
 router.get('/mine', auth, async (req, res) => {
   try {
     const posts = await JobPost.find({ resident: req.user.id })
+      .select(LIST_EXCLUDE)
       .populate('resident', 'name avatar')
       .populate('acceptedBy', 'name avatar phone')
       .sort({ createdAt: -1 });
@@ -172,7 +183,7 @@ router.get('/mine', auth, async (req, res) => {
 
     res.json({ posts: postsWithCounts });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -181,7 +192,11 @@ router.get('/', auth, async (req, res) => {
   try {
     expireUrgentPosts(); // background cleanup
 
-    const { category, status = 'open', page = 1, limit = 20 } = req.query;
+    const { category, status = 'open' } = req.query;
+    // Clamp so a client cannot ask for the whole collection in one request
+    const page  = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.limit) || DEFAULT_PAGE_SIZE));
+
     const baseFilter = { status };
     if (category) baseFilter.category = category;
 
@@ -189,6 +204,7 @@ router.get('/', auth, async (req, res) => {
 
     const [posts, total] = await Promise.all([
       JobPost.find(filter)
+        .select(LIST_EXCLUDE)
         .populate('resident', 'name avatar')
         .populate('acceptedBy', 'name avatar')
         .sort({ createdAt: -1 })
@@ -199,7 +215,7 @@ router.get('/', auth, async (req, res) => {
 
     res.json({ posts: sortByUrgency(posts), total, page: Number(page) });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -215,6 +231,16 @@ router.get('/:id', auth, async (req, res) => {
     ]);
     if (!post) return res.status(404).json({ message: 'פוסט לא נמצא' });
 
+    // The resident's phone is private until they approve a worker: only the
+    // resident and the worker they accepted may see it. Every other signed-in
+    // user browsing the feed used to receive it here.
+    const viewerId    = req.user._id.toString();
+    const isOwner     = post.resident?._id?.toString() === viewerId;
+    const isHiredWorker = post.acceptedBy?._id?.toString() === viewerId;
+    if (post.resident && !isOwner && !isHiredWorker) {
+      post.resident.phone = undefined;
+    }
+
     // Return time remaining if urgent
     const urgencyRemainingMs =
       post.urgency === 'urgent' && post.urgencyExpiresAt
@@ -223,44 +249,7 @@ router.get('/:id', auth, async (req, res) => {
 
     res.json({ post, quoteCount, urgencyRemainingMs });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
-  }
-});
-
-// ─── POST /api/posts/:id/accept ───────────────────────────────────────────────
-router.post('/:id/accept', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'worker') {
-      return res.status(403).json({ message: 'רק בעלי מקצוע יכולים לקבל עבודות' });
-    }
-    const post = await JobPost.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'פוסט לא נמצא' });
-    if (post.status !== 'open') {
-      return res.status(400).json({ message: 'הפוסט כבר לא פתוח לקבלה' });
-    }
-    post.status = 'accepted';
-    post.acceptedBy = req.user.id;
-    await post.save();
-    await post.populate([
-      { path: 'resident',   select: 'name avatar phone' },
-      { path: 'acceptedBy', select: 'name avatar' },
-    ]);
-
-    const Booking = require('../models/Booking');
-    const existing = await Booking.findOne({ jobPost: post._id });
-    if (!existing) {
-      await Booking.create({
-        resident: post.resident._id,
-        worker: req.user.id,
-        category: post.category,
-        description: post.title,
-        status: 'accepted',
-        price: post.budget ?? null,
-      });
-    }
-    res.json({ post });
-  } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -274,7 +263,7 @@ router.post('/:id/close', auth, async (req, res) => {
     await post.populate('resident', 'name avatar phone');
     res.json({ post });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 

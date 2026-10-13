@@ -11,4 +11,7 @@ const reviewSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Reviews on a worker profile, newest first
+reviewSchema.index({ worker: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Review', reviewSchema);

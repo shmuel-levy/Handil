@@ -8,9 +8,11 @@ interface Props {
   reviewCount?: number;
   size?: number;
   showCount?: boolean;
+  /** Override for the numeric label, e.g. on a dark hero */
+  textColor?: string;
 }
 
-export default function StarRating({ rating, reviewCount, size = 14, showCount = true }: Props) {
+export default function StarRating({ rating, reviewCount, size = 14, showCount = true, textColor }: Props) {
   const fullStars = Math.floor(rating);
   const hasHalf = rating - fullStars >= 0.5;
   const emptyStars = 5 - fullStars - (hasHalf ? 1 : 0);
@@ -25,7 +27,7 @@ export default function StarRating({ rating, reviewCount, size = 14, showCount =
         <Ionicons key={`e${i}`} name="star-outline" size={size} color={colors.star} />
       ))}
       {showCount && (
-        <Text style={[styles.text, { fontSize: size }]}>
+        <Text style={[styles.text, { fontSize: size }, textColor ? { color: textColor } : null]}>
           {' '}
           {rating.toFixed(1)}
           {reviewCount !== undefined ? ` (${reviewCount})` : ''}

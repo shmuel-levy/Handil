@@ -4,6 +4,9 @@ const bookingSchema = new mongoose.Schema(
   {
     resident: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     worker: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    // Set when the booking originated from a job post (direct accept or an
+    // accepted quote). Null for a booking requested straight from a profile.
+    jobPost: { type: mongoose.Schema.Types.ObjectId, ref: 'JobPost', default: null },
     category: { type: String, required: true },
     description: { type: String, default: '', trim: true },
     scheduledDate: { type: Date, default: null },
@@ -15,6 +18,19 @@ const bookingSchema = new mongoose.Schema(
     price: { type: Number, default: null },
   },
   { timestamps: true }
+);
+
+// Each side's booking list
+bookingSchema.index({ resident: 1, createdAt: -1 });
+bookingSchema.index({ worker: 1, createdAt: -1 });
+// Reliability stats counted by status
+bookingSchema.index({ worker: 1, status: 1 });
+// At most one booking per job post. Partial rather than sparse: `jobPost`
+// defaults to null, and a sparse index still indexes nulls, so every direct
+// booking would have collided with every other one.
+bookingSchema.index(
+  { jobPost: 1 },
+  { unique: true, partialFilterExpression: { jobPost: { $type: 'objectId' } } }
 );
 
 module.exports = mongoose.model('Booking', bookingSchema);

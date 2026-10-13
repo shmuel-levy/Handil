@@ -3,16 +3,23 @@ const Conversation  = require('../models/Conversation');
 const Message       = require('../models/Message');
 const User          = require('../models/User');
 const auth          = require('../middleware/auth');
+const { validate }  = require('../middleware/validate');
+const { schemas }   = require('@handil/shared');
+const { unreadIncrement } = require('../utils/unread');
+const { serverError } = require('../utils/serverError');
+const { objectIdParam } = require('../middleware/objectIdParam');
+
+router.param('id', objectIdParam('שיחה לא נמצאה'));
 
 const USER_SELECT = 'name avatar role';
+const MAX_MESSAGES_PAGE = 100;
 
 // ─── POST /api/chat/conversations ─────────────────────────────────────────────
 // Start or fetch a conversation between current user and another user
 // Body: { otherUserId, jobPostId? }
-router.post('/conversations', auth, async (req, res) => {
+router.post('/conversations', auth, validate(schemas.createConversationSchema), async (req, res) => {
   try {
     const { otherUserId, jobPostId } = req.body;
-    if (!otherUserId) return res.status(400).json({ message: 'חסר otherUserId' });
     if (otherUserId === req.user._id.toString()) {
       return res.status(400).json({ message: 'לא ניתן לשלוח הודעה לעצמך' });
     }
@@ -39,7 +46,7 @@ router.post('/conversations', auth, async (req, res) => {
 
     res.status(201).json({ conversation: conv });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -54,7 +61,7 @@ router.get('/conversations', auth, async (req, res) => {
 
     res.json({ conversations });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -70,12 +77,14 @@ router.get('/conversations/:id/messages', auth, async (req, res) => {
     );
     if (!isParticipant) return res.status(403).json({ message: 'אין גישה לשיחה זו' });
 
-    const { page = 1, limit = 50 } = req.query;
+    // Clamp so one request cannot pull an entire conversation history
+    const page  = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(MAX_MESSAGES_PAGE, Math.max(1, Number(req.query.limit) || 50));
     const messages = await Message.find({ conversation: req.params.id })
       .populate('sender', USER_SELECT)
       .sort({ createdAt: -1 })
-      .skip((Number(page) - 1) * Number(limit))
-      .limit(Number(limit));
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     // Mark all as read for current user
     await Message.updateMany(
@@ -88,18 +97,17 @@ router.get('/conversations/:id/messages', auth, async (req, res) => {
       $set: { [`unreadCounts.${req.user._id}`]: 0 },
     }, { returnDocument: 'after' });
 
-    res.json({ messages: messages.reverse(), page: Number(page) });
+    res.json({ messages: messages.reverse(), page });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
 // ─── POST /api/chat/conversations/:id/messages ────────────────────────────────
 // Send a message (REST fallback — primary path is Socket.io)
-router.post('/conversations/:id/messages', auth, async (req, res) => {
+router.post('/conversations/:id/messages', auth, validate(schemas.sendMessageSchema), async (req, res) => {
   try {
-    const { text } = req.body;
-    if (!text?.trim()) return res.status(400).json({ message: 'הודעה ריקה' });
+    const { text } = req.body; // already trimmed and length-checked by the schema
 
     const conv = await Conversation.findById(req.params.id);
     if (!conv) return res.status(404).json({ message: 'שיחה לא נמצאה' });
@@ -112,7 +120,7 @@ router.post('/conversations/:id/messages', auth, async (req, res) => {
     const msg = await Message.create({
       conversation: conv._id,
       sender: req.user._id,
-      text: text.trim(),
+      text,
       readBy: [req.user._id],
     });
     await msg.populate('sender', USER_SELECT);
@@ -121,23 +129,17 @@ router.post('/conversations/:id/messages', auth, async (req, res) => {
     const otherParticipants = conv.participants.filter(
       (p) => p.toString() !== req.user._id.toString()
     );
-    const unreadUpdate = {};
-    for (const pid of otherParticipants) {
-      const cur = conv.unreadCounts?.get?.(pid.toString()) ?? 0;
-      unreadUpdate[`unreadCounts.${pid}`] = cur + 1;
-    }
-
     await Conversation.findByIdAndUpdate(conv._id, {
       $set: {
-        lastMessage: text.trim().substring(0, 80),
+        lastMessage: text.substring(0, 80),
         lastMessageAt: new Date(),
-        ...unreadUpdate,
       },
-    }, { returnDocument: 'after' });
+      $inc: unreadIncrement(otherParticipants),
+    });
 
     res.status(201).json({ message: msg });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -152,7 +154,7 @@ router.get('/unread', auth, async (req, res) => {
     }, 0);
     res.json({ unread: total });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 

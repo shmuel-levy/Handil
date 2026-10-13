@@ -27,7 +27,18 @@ export async function getMe(): Promise<User> {
   return data;
 }
 
-export async function updateMyProfile(patch: { phone?: string; city?: string; name?: string }) {
+export async function updateMyProfile(patch: {
+  phone?: string;
+  city?: string;
+  name?: string;
+  avatar?: string;
+  preferredCategories?: string[];
+}) {
   const { data } = await apiClient.put('/auth/me', patch);
   return data as { user: User };
+}
+
+/** Permanently deletes the signed-in account. The server re-checks the password. */
+export async function deleteAccount(password: string): Promise<void> {
+  await apiClient.delete('/auth/me', { data: { password } });
 }

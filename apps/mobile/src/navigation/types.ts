@@ -1,3 +1,4 @@
+import { NavigatorScreenParams } from '@react-navigation/native';
 import { User } from '../types';
 
 export type AuthStackParamList = {
@@ -7,7 +8,7 @@ export type AuthStackParamList = {
 };
 
 export type MainTabParamList = {
-  HomeTab: undefined;
+  HomeTab: NavigatorScreenParams<HomeStackParamList> | undefined;
   SearchTab: { category?: string; categoryName?: string } | undefined;
   BookingsTab: undefined;
   PostsTab: undefined;
@@ -35,6 +36,7 @@ export type PostsStackParamList = {
 
 export type HomeStackParamList = {
   Home: undefined;
+  Info: { topic: 'about' | 'support' | 'faq' | 'terms' | 'privacy' };
   WorkerList: { category: string; categoryName: string };
   WorkerDetail: { workerId: string; workerName: string };
   BookingRequest: { workerId: string; workerUserId: string; workerName: string; category?: string };

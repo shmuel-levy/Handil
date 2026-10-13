@@ -1,0 +1,15 @@
+# The API image is built from the repo root (docker build -f apps/api/Dockerfile .)
+# so this file governs its context. Keep the context to what the image copies.
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+**/coverage
+.git
+.github
+docs
+rtl-hebrew-docs
+apps/mobile
+apps/api/__tests__
+apps/api/scripts

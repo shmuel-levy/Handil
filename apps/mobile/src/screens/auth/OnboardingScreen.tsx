@@ -170,8 +170,16 @@ export default function OnboardingScreen() {
 
   async function complete() {
     setSaving(true);
+
+    // Declared out here because `finally` also needs it
+    const chosenCity = (isWorker ? workerCity : city) || 'תל אביב';
+
     try {
       const auth = { Authorization: `Bearer ${token}` };
+      // The chosen city belongs on the User record for both roles — the home
+      // screen and every "my city" default read it from there. Workers used to
+      // save it only onto their Worker profile, so the app kept greeting them
+      // with תל אביב no matter what they picked.
       if (isWorker) {
         const rates = {
           urgent:   urgencyRates.urgent   ? Number(urgencyRates.urgent)   : null,
@@ -183,8 +191,11 @@ export default function OnboardingScreen() {
         const filled = Object.values(rates).filter(Boolean) as number[];
         const baseRate = filled.length ? Math.min(...filled) : null;
 
+        // Keep the User record in step with the Worker profile
+        await apiClient.put('/auth/me', { city: chosenCity }, { headers: auth });
+
         await apiClient.put('/workers/me', {
-          city: workerCity || 'תל אביב',
+          city: chosenCity,
           yearsExperience: expYears ?? 0,
           categories,
           hourlyRate: baseRate,
@@ -204,7 +215,7 @@ export default function OnboardingScreen() {
       // best-effort — don't block login on API failure
     } finally {
       setSaving(false);
-      setAuth(token, { ...user, city: isWorker ? user.city : city });
+      setAuth(token, { ...user, city: chosenCity });
     }
   }
 

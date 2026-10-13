@@ -27,23 +27,25 @@ export default function MainNavigator() {
       }
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        // Asphalt bar with a safety-yellow rule on top, like a kerb edge
+        tabBarActiveTintColor: colors.hazard,
+        tabBarInactiveTintColor: colors.onAsphaltMuted,
         tabBarStyle: isDesktop
           ? { display: 'none' as any }
           : {
-              backgroundColor: colors.surface,
-              borderTopColor: colors.border,
+              backgroundColor: colors.asphalt,
+              borderTopColor: colors.hazard,
+              borderTopWidth: 3,
               paddingBottom: 4,
-              height: 60,
+              height: 62,
             },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
         tabBarIcon: ({ focused, color, size }) => {
           const icons: Record<string, { active: string; inactive: string }> = {
             HomeTab:     { active: 'home',           inactive: 'home-outline' },
             SearchTab:   { active: 'search',         inactive: 'search-outline' },
             BookingsTab: { active: 'calendar',       inactive: 'calendar-outline' },
-            PostsTab:    { active: 'newspaper',      inactive: 'newspaper-outline' },
+            PostsTab:    { active: 'clipboard',      inactive: 'clipboard-outline' },
             ChatTab:     { active: 'chatbubbles',    inactive: 'chatbubbles-outline' },
             ProfileTab:  { active: 'person',         inactive: 'person-outline' },
           };

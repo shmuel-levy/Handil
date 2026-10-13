@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Linking,
@@ -15,19 +18,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { CATEGORIES } from '../../constants/categories';
+import BlueprintGrid from '../../components/site/BlueprintGrid';
+import HazardStripe from '../../components/site/HazardStripe';
 import { colors } from '../../constants/colors';
+import { deleteAccount, updateMyProfile } from '../../services/authApi';
 import { getMyWorkerProfile, getWorker, updateWorkerProfile } from '../../services/workersApi';
 import { useAuthStore } from '../../store/authStore';
+import type { MainTabParamList } from '../../navigation/types';
 import { WorkerProfile, WorkerStats } from '../../types';
 
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const updateUser = useAuthStore((s) => s.updateUser);
 
   const [workerProfile, setWorkerProfile] = useState<WorkerProfile | null>(null);
   const [workerStats, setWorkerStats] = useState<WorkerStats | null>(null);
   const [editing, setEditing] = useState(false);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<string | null>(user?.avatar || null);
+  const [photoSaving, setPhotoSaving] = useState(false);
   const [bio, setBio] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [yearsExp, setYearsExp] = useState('');
@@ -36,6 +45,11 @@ export default function ProfileScreen() {
   const [isAvailable, setIsAvailable] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmLogoutVisible, setConfirmLogoutVisible] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
 
   useEffect(() => {
     if (user?.role !== 'worker') return;
@@ -63,13 +77,31 @@ export default function ProfileScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      // MediaTypeOptions is deprecated in expo-image-picker 17
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
+      quality: 0.5,
+      base64: true,
     });
-    if (!result.canceled) {
-      setPhoto(result.assets[0].uri);
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+
+    // Show it straight away, then persist. Previously the picked photo only
+    // ever lived in local state and vanished on the next app launch.
+    const previous = photo;
+    setPhoto(dataUri);
+    setPhotoSaving(true);
+    try {
+      const { user: updated } = await updateMyProfile({ avatar: dataUri });
+      updateUser({ avatar: updated.avatar });
+    } catch (e: any) {
+      setPhoto(previous);
+      Alert.alert('שגיאה', e?.response?.data?.message ?? 'לא ניתן לשמור את התמונה');
+    } finally {
+      setPhotoSaving(false);
     }
   };
 
@@ -103,15 +135,43 @@ export default function ProfileScreen() {
     setConfirmLogoutVisible(true);
   }
 
+  function openInfo(topic: 'privacy' | 'terms') {
+    navigation.navigate('HomeTab', { screen: 'Info', params: { topic } });
+  }
+
+  function closeDelete() {
+    setDeleteOpen(false);
+    setDeletePassword('');
+    setDeleteError('');
+  }
+
+  async function handleDeleteAccount() {
+    if (!deletePassword) {
+      setDeleteError('נא להזין סיסמה לאישור');
+      return;
+    }
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteAccount(deletePassword);
+      // Signing out clears the stored token and drops the socket (AppRoot)
+      await logout();
+    } catch (e: any) {
+      setDeleteError(e?.response?.data?.message ?? 'לא ניתן למחוק את החשבון כרגע');
+      setDeleting(false);
+    }
+  }
+
   const initial = user?.name?.charAt(0)?.toUpperCase() ?? '?';
   const isWorker = user?.role === 'worker';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll} contentContainerStyle={styles.content}>
 
         {/* ── Hero header ── */}
         <View style={styles.hero}>
+          <BlueprintGrid />
           {/* Avatar */}
           <View style={styles.avatarWrap}>
             {photo ? (
@@ -121,8 +181,17 @@ export default function ProfileScreen() {
                 <Text style={styles.avatarInitial}>{initial}</Text>
               </View>
             )}
-            <TouchableOpacity style={styles.cameraBtn} onPress={pickPhoto} activeOpacity={0.85}>
-              <Ionicons name="camera" size={16} color={colors.white} />
+            <TouchableOpacity
+              style={styles.cameraBtn}
+              onPress={pickPhoto}
+              activeOpacity={0.85}
+              disabled={photoSaving}
+              accessibilityRole="button"
+              accessibilityLabel="שינוי תמונת פרופיל"
+            >
+              {photoSaving
+                ? <ActivityIndicator size="small" color={colors.asphalt} />
+                : <Ionicons name="camera" size={16} color={colors.asphalt} />}
             </TouchableOpacity>
           </View>
 
@@ -133,13 +202,14 @@ export default function ProfileScreen() {
             <Ionicons
               name={isWorker ? 'construct' : 'home'}
               size={12}
-              color={isWorker ? colors.primary : colors.success}
+              color={colors.asphalt}
             />
-            <Text style={[styles.rolePillText, isWorker ? { color: colors.primary } : { color: colors.success }]}>
+            <Text style={styles.rolePillText}>
               {isWorker ? 'בעל מקצוע' : 'דייר'}
             </Text>
           </View>
         </View>
+        <HazardStripe height={8} stripe={12} />
 
         {/* ── Worker stats ── */}
         {isWorker && workerProfile && (
@@ -153,7 +223,7 @@ export default function ProfileScreen() {
             <View style={styles.statDivider} />
             <StatCard
               icon="chatbubble-ellipses"
-              iconColor="#8B5CF6"
+              iconColor={colors.blueprint}
               value={String(workerProfile.reviewCount ?? 0)}
               label="ביקורות"
             />
@@ -184,7 +254,7 @@ export default function ProfileScreen() {
               />
               <DashCell
                 icon="trending-up"
-                iconColor="#8B5CF6"
+                iconColor={colors.blueprint}
                 value={workerStats.completionRate !== null ? `${workerStats.completionRate}%` : '—'}
                 label="אחוז השלמה"
               />
@@ -359,14 +429,14 @@ export default function ProfileScreen() {
             icon="shield-checkmark-outline"
             title="מדיניות פרטיות"
             subtitle="איך אנחנו מגנים על המידע שלך"
-            onPress={() => Alert.alert('בקרוב', 'מדיניות הפרטיות תהיה זמינה בקרוב.')}
+            onPress={() => openInfo('privacy')}
           />
 
           <SettingRow
             icon="document-text-outline"
             title="תנאי שימוש"
             subtitle="הסכם שימוש ותנאי השירות"
-            onPress={() => Alert.alert('בקרוב', 'תנאי השימוש יהיו זמינים בקרוב.')}
+            onPress={() => openInfo('terms')}
             last
           />
         </View>
@@ -388,6 +458,47 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={18} color={colors.error} />
             <Text style={styles.logoutText}>התנתקות</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* ── Delete account ── */}
+        {deleteOpen ? (
+          <View style={styles.deletePanel}>
+            <Text style={styles.deleteTitle}>מחיקת החשבון לצמיתות</Text>
+            <Text style={styles.deleteBody}>
+              {isWorker
+                ? 'הפרופיל, ההצעות, ההזמנות, הביקורות וההודעות שלך יימחקו. עבודות שהתקבלת אליהן יחזרו להיות פתוחות. לא ניתן לבטל פעולה זו.'
+                : 'העבודות שפרסמת, ההצעות שקיבלת, ההזמנות, הביקורות וההודעות שלך יימחקו. לא ניתן לבטל פעולה זו.'}
+            </Text>
+            <Input
+              label="הזן סיסמה לאישור"
+              value={deletePassword}
+              onChangeText={(t) => { setDeletePassword(t); setDeleteError(''); }}
+              secureTextEntry
+              autoCapitalize="none"
+              editable={!deleting}
+            />
+            {deleteError ? <Text style={styles.deleteError}>{deleteError}</Text> : null}
+            <View style={styles.logoutConfirmBtns}>
+              <TouchableOpacity
+                style={[styles.logoutConfirmYes, deleting && { opacity: 0.7 }]}
+                onPress={handleDeleteAccount}
+                disabled={deleting}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+              >
+                {deleting
+                  ? <ActivityIndicator size="small" color={colors.white} />
+                  : <Text style={styles.logoutConfirmYesText}>מחק את החשבון</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.logoutConfirmNo} onPress={closeDelete} disabled={deleting} activeOpacity={0.85}>
+                <Text style={styles.logoutConfirmNoText}>ביטול</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.deleteLink} onPress={() => setDeleteOpen(true)} activeOpacity={0.7}>
+            <Text style={styles.deleteLinkText}>מחיקת חשבון</Text>
           </TouchableOpacity>
         )}
 
@@ -444,47 +555,51 @@ function SettingRow({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  // Asphalt so the status-bar inset above the hero matches it
+  safe: { flex: 1, backgroundColor: colors.asphalt },
+  scroll: { backgroundColor: colors.background },
   content: { paddingBottom: 32 },
 
   // ── Hero
   hero: {
-    backgroundColor: colors.primary, alignItems: 'center',
-    paddingTop: 32, paddingBottom: 36, paddingHorizontal: 24,
+    backgroundColor: colors.asphalt, alignItems: 'center',
+    paddingTop: 32, paddingBottom: 30, paddingHorizontal: 24,
+    overflow: 'hidden',
   },
   avatarWrap: { position: 'relative', marginBottom: 16 },
+  // Square site-ID photo with a hazard-yellow frame
   avatar: {
-    width: 96, height: 96, borderRadius: 48,
-    borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)',
+    width: 96, height: 96, borderRadius: 10,
+    borderWidth: 3, borderColor: colors.hazard,
   },
   avatarFallback: {
-    width: 96, height: 96, borderRadius: 48,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)',
+    width: 96, height: 96, borderRadius: 10,
+    backgroundColor: colors.hazard,
+    borderBottomWidth: 5, borderBottomColor: colors.hazardDark,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitial: { fontSize: 38, fontWeight: '800', color: '#fff' },
+  avatarInitial: { fontSize: 40, fontWeight: '900', color: colors.asphalt },
   cameraBtn: {
-    position: 'absolute', bottom: 0, left: 0,
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: colors.primaryDark,
-    borderWidth: 2.5, borderColor: '#fff',
+    position: 'absolute', bottom: -6, left: -6,
+    width: 32, height: 32, borderRadius: 6,
+    backgroundColor: colors.hazard,
+    borderWidth: 2.5, borderColor: colors.asphalt,
     alignItems: 'center', justifyContent: 'center',
   },
-  heroName: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  heroEmail: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 14 },
+  heroName: { fontSize: 24, fontWeight: '900', color: colors.onAsphalt, marginBottom: 4 },
+  heroEmail: { fontSize: 13, color: colors.onAsphaltMuted, marginBottom: 14 },
   rolePill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 4,
   },
-  rolePillWorker: { backgroundColor: 'rgba(255,255,255,0.9)' },
-  rolePillResident: { backgroundColor: 'rgba(255,255,255,0.9)' },
-  rolePillText: { fontSize: 13, fontWeight: '700' },
+  rolePillWorker: { backgroundColor: colors.hazard },
+  rolePillResident: { backgroundColor: colors.onAsphalt },
+  rolePillText: { fontSize: 13, fontWeight: '900', color: colors.asphalt },
 
   // ── Stats
   statsRow: {
     flexDirection: 'row', backgroundColor: colors.surface,
-    marginHorizontal: 20, marginTop: -20, borderRadius: 18, padding: 20,
+    marginHorizontal: 20, marginTop: 16, borderRadius: 8, padding: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
     marginBottom: 16,
@@ -496,7 +611,7 @@ const styles = StyleSheet.create({
 
   // ── Cards
   card: {
-    backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: 18, padding: 18,
+    backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: 8, padding: 18,
     marginBottom: 14, borderWidth: 1, borderColor: colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
@@ -528,7 +643,7 @@ const styles = StyleSheet.create({
   catChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 11, paddingVertical: 7,
-    borderRadius: 20, borderWidth: 1.5,
+    borderRadius: 6, borderWidth: 1.5,
     borderColor: colors.border, backgroundColor: colors.background,
   },
   catChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
@@ -543,7 +658,7 @@ const styles = StyleSheet.create({
   },
   dashCell: {
     width: '47%', alignItems: 'center', gap: 6,
-    backgroundColor: colors.background, borderRadius: 14, padding: 14,
+    backgroundColor: colors.background, borderRadius: 6, padding: 14,
     borderWidth: 1, borderColor: colors.border,
   },
   dashIconWrap: {
@@ -555,7 +670,7 @@ const styles = StyleSheet.create({
 
   // ── Settings
   settingsCard: {
-    backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: 18,
+    backgroundColor: colors.surface, marginHorizontal: 20, borderRadius: 8,
     marginBottom: 16, borderWidth: 1, borderColor: colors.border,
     overflow: 'hidden',
   },
@@ -575,13 +690,13 @@ const styles = StyleSheet.create({
   // ── Logout
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginHorizontal: 20, paddingVertical: 15, borderRadius: 16,
+    marginHorizontal: 20, paddingVertical: 15, borderRadius: 6,
     borderWidth: 1.5, borderColor: colors.error + '60',
     backgroundColor: colors.errorLight,
   },
   logoutText: { fontSize: 15, fontWeight: '700', color: colors.error },
   logoutConfirm: {
-    marginHorizontal: 20, padding: 18, borderRadius: 16,
+    marginHorizontal: 20, padding: 18, borderRadius: 8,
     backgroundColor: colors.errorLight, borderWidth: 1, borderColor: colors.error + '40',
     gap: 14,
   },
@@ -597,4 +712,16 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: colors.border,
   },
   logoutConfirmNoText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+
+  // ── Delete account
+  deleteLink: { alignSelf: 'center', marginTop: 18, paddingVertical: 8, paddingHorizontal: 16 },
+  deleteLinkText: { fontSize: 13, fontWeight: '600', color: colors.textMuted, textDecorationLine: 'underline' },
+  deletePanel: {
+    marginHorizontal: 20, marginTop: 16, padding: 18, borderRadius: 8,
+    backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.error,
+    gap: 10,
+  },
+  deleteTitle: { fontSize: 16, fontWeight: '800', color: colors.error, textAlign: 'right' },
+  deleteBody: { fontSize: 13, color: colors.textSecondary, textAlign: 'right', lineHeight: 20 },
+  deleteError: { fontSize: 13, color: colors.error, textAlign: 'right', fontWeight: '600' },
 });
