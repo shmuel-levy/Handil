@@ -73,6 +73,12 @@ const loginSchema = z.object({
     .min(1, 'נא להזין אימייל וסיסמה'),
 });
 
+/** Deleting an account is irreversible, so the password is asked for again. */
+const deleteAccountSchema = z.object({
+  password: z.string({ required_error: 'נא להזין סיסמה לאישור', invalid_type_error: 'נא להזין סיסמה לאישור' })
+    .min(1, 'נא להזין סיסמה לאישור'),
+});
+
 const updateProfileSchema = z.object({
   name:   z.string().trim().min(1, 'השם לא יכול להיות ריק').max(80).optional(),
   phone:  z.string().trim().max(30).optional(),
@@ -198,6 +204,7 @@ module.exports = {
   approximateBytes,
   registerSchema,
   loginSchema,
+  deleteAccountSchema,
   updateProfileSchema,
   createPostSchema,
   createQuoteSchema,

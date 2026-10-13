@@ -32,15 +32,17 @@ const auth = (user) => ({ Authorization: `Bearer ${tokenFor(user)}` });
 // ─── Concurrent accepts ───────────────────────────────────────────────────────
 
 describe('accepting a job is atomic', () => {
-  it('lets exactly one of two concurrent worker accepts win', async () => {
+  it('lets exactly one of two concurrent quote accepts win', async () => {
     const resident = await createResident();
-    const { user: a } = await createWorkerUser({ name: 'A' });
-    const { user: b } = await createWorkerUser({ name: 'B' });
+    const { user: a, workerProfile: wa } = await createWorkerUser({ name: 'A' });
+    const { user: b, workerProfile: wb } = await createWorkerUser({ name: 'B' });
     const post = await createPost(resident._id);
+    const qa = await createQuote(post._id, wa._id);
+    const qb = await createQuote(post._id, wb._id);
 
     const [r1, r2] = await Promise.all([
-      request(app).post(`/api/posts/${post._id}/accept`).set(auth(a)),
-      request(app).post(`/api/posts/${post._id}/accept`).set(auth(b)),
+      request(app).patch(`/api/quotes/${qa._id}/accept`).set(auth(resident)),
+      request(app).patch(`/api/quotes/${qb._id}/accept`).set(auth(resident)),
     ]);
 
     expect([r1.status, r2.status].sort()).toEqual([200, 400]);
@@ -55,27 +57,47 @@ describe('accepting a job is atomic', () => {
     expect(bookings[0].worker.toString()).toBe(winner._id.toString());
   });
 
-  it('refuses a quote accept once a worker has taken the post directly', async () => {
+  it('rolls everything back when the booking cannot be created', async () => {
     const resident = await createResident();
-    const { user: direct } = await createWorkerUser();
-    const { workerProfile: quoter } = await createWorkerUser();
+    const { workerProfile } = await createWorkerUser();
     const post = await createPost(resident._id);
-    const quote = await createQuote(post._id, quoter._id);
+    const quote = await createQuote(post._id, workerProfile._id);
 
-    await request(app).post(`/api/posts/${post._id}/accept`).set(auth(direct)).expect(200);
-
+    const spy = jest.spyOn(Booking, 'create').mockRejectedValueOnce(new Error('db down'));
     const res = await request(app).patch(`/api/quotes/${quote._id}/accept`).set(auth(resident));
-    expect(res.status).toBe(400);
+    spy.mockRestore();
+
+    expect(res.status).toBe(409);
+    const stored = await JobPost.findById(post._id);
+    expect(stored.status).toBe('open');
+    expect(stored.acceptedBy).toBeNull();
     expect((await Quote.findById(quote._id)).status).toBe('pending');
-    expect(await Booking.countDocuments({ jobPost: post._id })).toBe(1);
+    expect(await Booking.countDocuments({ jobPost: post._id })).toBe(0);
+
+    // …and the resident can simply try again
+    await request(app).patch(`/api/quotes/${quote._id}/accept`).set(auth(resident)).expect(200);
   });
 
-  it('still returns 404 for a post that does not exist', async () => {
+  it('the database refuses a second booking for the same job post', async () => {
+    const resident = await createResident();
     const { user: worker } = await createWorkerUser();
-    const res = await request(app)
-      .post('/api/posts/64a000000000000000000099/accept')
-      .set(auth(worker));
-    expect(res.status).toBe(404);
+    const post = await createPost(resident._id);
+    await Booking.syncIndexes();
+
+    await createBooking(resident._id, worker._id, { jobPost: post._id });
+    await expect(createBooking(resident._id, worker._id, { jobPost: post._id }))
+      .rejects.toMatchObject({ code: 11000 });
+  });
+
+  it('returns 404 for a quote that does not exist, and for a malformed id', async () => {
+    const resident = await createResident();
+    const missing = await request(app)
+      .patch('/api/quotes/64a000000000000000000099/accept').set(auth(resident));
+    expect(missing.status).toBe(404);
+
+    const malformed = await request(app)
+      .patch('/api/quotes/nope/accept').set(auth(resident));
+    expect(malformed.status).toBe(404);
   });
 });
 

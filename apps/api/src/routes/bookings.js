@@ -6,10 +6,14 @@ const authMiddleware = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { getIO } = require('../socket');
 const { schemas, WORKER_BOOKING_STATUSES, RESIDENT_BOOKING_STATUSES } = require('@handil/shared');
+const { serverError } = require('../utils/serverError');
+const { objectIdParam } = require('../middleware/objectIdParam');
 
 const FINAL_BOOKING_STATUSES = ['completed', 'rejected', 'cancelled'];
 
 const router = express.Router();
+
+router.param('id', objectIdParam('הזמנה לא נמצאה'));
 
 // POST /api/bookings
 router.post('/', authMiddleware, validate(schemas.createBookingSchema), async (req, res) => {
@@ -37,7 +41,7 @@ router.post('/', authMiddleware, validate(schemas.createBookingSchema), async (r
 
     res.status(201).json({ booking });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -56,7 +60,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({ bookings });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -75,7 +79,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     res.json({ booking });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -125,7 +129,7 @@ router.patch('/:id/status', authMiddleware, validate(schemas.updateBookingStatus
 
     res.json({ booking });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 

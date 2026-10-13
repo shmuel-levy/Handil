@@ -25,7 +25,12 @@ bookingSchema.index({ resident: 1, createdAt: -1 });
 bookingSchema.index({ worker: 1, createdAt: -1 });
 // Reliability stats counted by status
 bookingSchema.index({ worker: 1, status: 1 });
-// Guards against creating two bookings for the same job post
-bookingSchema.index({ jobPost: 1 }, { sparse: true });
+// At most one booking per job post. Partial rather than sparse: `jobPost`
+// defaults to null, and a sparse index still indexes nulls, so every direct
+// booking would have collided with every other one.
+bookingSchema.index(
+  { jobPost: 1 },
+  { unique: true, partialFilterExpression: { jobPost: { $type: 'objectId' } } }
+);
 
 module.exports = mongoose.model('Booking', bookingSchema);

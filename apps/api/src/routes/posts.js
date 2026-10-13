@@ -1,4 +1,4 @@
-const router = require('express').Router();
+const router  = require('express').Router();
 const JobPost = require('../models/JobPost');
 const Worker  = require('../models/Worker');
 const auth    = require('../middleware/auth');
@@ -7,6 +7,10 @@ const { getIO } = require('../socket');
 const {
   schemas, URGENT_TTL_MS, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE,
 } = require('@handil/shared');
+const { serverError } = require('../utils/serverError');
+const { objectIdParam } = require('../middleware/objectIdParam');
+
+router.param('id', objectIdParam('פוסט לא נמצא'));
 
 const URGENCY_SCORE = { urgent: 4, today: 3, week: 2, flexible: 1 };
 
@@ -88,7 +92,7 @@ router.post('/', auth, validate(schemas.createPostSchema), async (req, res) => {
 
     res.status(201).json({ post });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -151,7 +155,7 @@ router.get('/recommended', auth, async (req, res) => {
 
     res.json({ posts: sortByUrgency(posts), total: posts.length, isPersonalized });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -179,7 +183,7 @@ router.get('/mine', auth, async (req, res) => {
 
     res.json({ posts: postsWithCounts });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -211,7 +215,7 @@ router.get('/', auth, async (req, res) => {
 
     res.json({ posts: sortByUrgency(posts), total, page: Number(page) });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -227,6 +231,16 @@ router.get('/:id', auth, async (req, res) => {
     ]);
     if (!post) return res.status(404).json({ message: 'פוסט לא נמצא' });
 
+    // The resident's phone is private until they approve a worker: only the
+    // resident and the worker they accepted may see it. Every other signed-in
+    // user browsing the feed used to receive it here.
+    const viewerId    = req.user._id.toString();
+    const isOwner     = post.resident?._id?.toString() === viewerId;
+    const isHiredWorker = post.acceptedBy?._id?.toString() === viewerId;
+    if (post.resident && !isOwner && !isHiredWorker) {
+      post.resident.phone = undefined;
+    }
+
     // Return time remaining if urgent
     const urgencyRemainingMs =
       post.urgency === 'urgent' && post.urgencyExpiresAt
@@ -235,51 +249,7 @@ router.get('/:id', auth, async (req, res) => {
 
     res.json({ post, quoteCount, urgencyRemainingMs });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
-  }
-});
-
-// ─── POST /api/posts/:id/accept ───────────────────────────────────────────────
-router.post('/:id/accept', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'worker') {
-      return res.status(403).json({ message: 'רק בעלי מקצוע יכולים לקבל עבודות' });
-    }
-    // Claim atomically: only one of several concurrent accepts can flip
-    // status from 'open', so two workers can never both get the job.
-    const post = await JobPost.findOneAndUpdate(
-      { _id: req.params.id, status: 'open' },
-      { $set: { status: 'accepted', acceptedBy: req.user._id } },
-      { returnDocument: 'after' }
-    );
-    if (!post) {
-      const exists = await JobPost.exists({ _id: req.params.id });
-      if (!exists) return res.status(404).json({ message: 'פוסט לא נמצא' });
-      return res.status(400).json({ message: 'הפוסט כבר לא פתוח לקבלה' });
-    }
-    await post.populate([
-      { path: 'resident',   select: 'name avatar phone' },
-      { path: 'acceptedBy', select: 'name avatar' },
-    ]);
-
-    const Booking = require('../models/Booking');
-    // `jobPost` is now a real field on Booking, so this guard genuinely
-    // prevents a second booking for the same post.
-    const existing = await Booking.findOne({ jobPost: post._id });
-    if (!existing) {
-      await Booking.create({
-        resident: post.resident._id,
-        worker: req.user.id,
-        jobPost: post._id,
-        category: post.category,
-        description: post.title,
-        status: 'accepted',
-        price: post.budget ?? null,
-      });
-    }
-    res.json({ post });
-  } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -293,7 +263,7 @@ router.post('/:id/close', auth, async (req, res) => {
     await post.populate('resident', 'name avatar phone');
     res.json({ post });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 

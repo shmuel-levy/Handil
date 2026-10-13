@@ -7,6 +7,11 @@ const auth    = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { getIO } = require('../socket');
 const { schemas } = require('@handil/shared');
+const { serverError } = require('../utils/serverError');
+const { objectIdParam } = require('../middleware/objectIdParam');
+
+router.param('id', objectIdParam('הצעה לא נמצאה'));
+router.param('jobId', objectIdParam('פוסט לא נמצא'));
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -70,7 +75,7 @@ router.post('/', auth, validate(schemas.createQuoteSchema), async (req, res) => 
     if (err.code === 11000) {
       return res.status(409).json({ message: 'כבר שלחת הצעה לפוסט הזה' });
     }
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -92,7 +97,7 @@ router.get('/job/:jobId', auth, async (req, res) => {
 
     res.json({ quotes, total: quotes.length });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -108,7 +113,7 @@ router.get('/check/:jobId', auth, async (req, res) => {
     const quote = await Quote.findOne({ jobPost: req.params.jobId, worker: workerDoc._id });
     res.json({ quote });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -122,12 +127,22 @@ router.get('/my', auth, async (req, res) => {
     if (!workerDoc) return res.json({ quotes: [] });
 
     const quotes = await Quote.find({ worker: workerDoc._id })
-      .populate({ path: 'jobPost', populate: { path: 'resident', select: 'name avatar' } })
+      .populate({ path: 'jobPost', populate: { path: 'resident', select: 'name avatar phone' } })
       .sort({ createdAt: -1 });
 
-    res.json({ quotes });
+    // The resident's phone is released only once they accept this worker's
+    // quote — that is the moment the "your quote was accepted" notice needs it.
+    const result = quotes.map((q) => {
+      const obj = q.toObject();
+      if (q.status !== 'accepted' && obj.jobPost?.resident) {
+        delete obj.jobPost.resident.phone;
+      }
+      return obj;
+    });
+
+    res.json({ quotes: result });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -150,22 +165,52 @@ router.patch('/:id/accept', auth, async (req, res) => {
       return res.status(403).json({ message: 'אין הרשאה לאשר הצעה זו' });
     }
 
+    const workerUserId = quote.worker.user._id;
+
     // Claim the post atomically. A separate "is it open?" check followed by a
-    // save let two concurrent accepts (two quotes, or a quote and a worker's
-    // direct accept) both succeed, leaving the post and booking disagreeing
-    // about who got the job.
+    // save let two concurrent accepts both succeed, leaving the post and
+    // booking disagreeing about who got the job.
     const post = await JobPost.findOneAndUpdate(
       { _id: existingPost._id, status: 'open' },
-      { $set: { status: 'accepted', acceptedBy: quote.worker.user._id } },
+      { $set: { status: 'accepted', acceptedBy: workerUserId } },
       { returnDocument: 'after' }
     );
     if (!post) {
       return res.status(400).json({ message: 'הפוסט כבר לא פתוח' });
     }
 
-    // Accept this quote
-    quote.status = 'accepted';
-    await quote.save();
+    // The remaining writes span three collections. Transactions would need a
+    // replica set (local dev and the test suite run a standalone mongod), so
+    // instead each step is undone if a later one fails — otherwise a failed
+    // booking insert left the post "accepted" with no booking behind it.
+    let booking = null;
+    try {
+      booking = await Booking.create({
+        resident:    residentId,
+        worker:      workerUserId,
+        jobPost:     post._id,
+        category:    post.category,
+        description: post.title,
+        status:      'accepted',
+        price:       quote.proposedPrice,
+      });
+
+      const claimed = await Quote.findOneAndUpdate(
+        { _id: quote._id, status: 'pending' },
+        { $set: { status: 'accepted' } },
+        { returnDocument: 'after' }
+      );
+      if (!claimed) throw new Error('quote no longer pending');
+      quote.status = 'accepted';
+    } catch (err) {
+      if (booking) await Booking.deleteOne({ _id: booking._id }).catch(() => {});
+      await JobPost.updateOne(
+        { _id: post._id, status: 'accepted', acceptedBy: workerUserId },
+        { $set: { status: 'open', acceptedBy: null } }
+      ).catch(() => {});
+      if (process.env.NODE_ENV !== 'test') console.error('quote accept rolled back:', err.message);
+      return res.status(409).json({ message: 'לא ניתן לאשר את ההצעה כרגע, נסו שוב' });
+    }
 
     // Reject all other pending quotes for this post
     await Quote.updateMany(
@@ -177,17 +222,6 @@ router.patch('/:id/accept', auth, async (req, res) => {
       { path: 'resident',   select: 'name avatar phone' },
       { path: 'acceptedBy', select: 'name avatar' },
     ]);
-
-    // Create Booking
-    await Booking.create({
-      resident:    residentId,
-      worker:      quote.worker.user._id,
-      jobPost:     post._id,
-      category:    post.category,
-      description: post.title,
-      status:      'accepted',
-      price:       quote.proposedPrice,
-    });
 
     // Real-time: notify the worker their quote was accepted
     try {
@@ -204,7 +238,7 @@ router.patch('/:id/accept', auth, async (req, res) => {
 
     res.json({ quote, post });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -247,7 +281,7 @@ router.patch('/:id/reject', auth, async (req, res) => {
 
     res.json({ quote });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 

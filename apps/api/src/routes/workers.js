@@ -7,8 +7,13 @@ const Quote   = require('../models/Quote');
 const authMiddleware = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { schemas, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } = require('@handil/shared');
+const { serverError } = require('../utils/serverError');
+const { objectIdParam } = require('../middleware/objectIdParam');
 
 const router = express.Router();
+
+router.param('id', objectIdParam('עובד לא נמצא'));
+router.param('itemId', objectIdParam('פריט לא נמצא'));
 
 /** Escapes user input before it becomes a RegExp, so `.` or `(` cannot break the query. */
 function escapeRegex(str) {
@@ -49,7 +54,7 @@ router.get('/', async (req, res) => {
 
     res.json({ workers: results, total, page, limit });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -61,7 +66,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     if (!worker) return res.status(404).json({ message: 'פרופיל עובד לא נמצא' });
     res.json({ worker });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -92,7 +97,7 @@ router.put('/me', authMiddleware, validate(schemas.updateWorkerSchema), async (r
 
     res.json({ worker });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -111,7 +116,7 @@ router.patch('/me/available', authMiddleware, validate(schemas.availabilitySchem
 
     res.json({ worker });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -138,7 +143,7 @@ router.post('/me/verify', authMiddleware, validate(schemas.verifyBadgeSchema), a
 
     res.json({ worker });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -158,7 +163,7 @@ router.post('/me/portfolio', authMiddleware, validate(schemas.portfolioItemSchem
     if (!worker) return res.status(404).json({ message: 'פרופיל עובד לא נמצא' });
     res.status(201).json({ worker });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -176,7 +181,7 @@ router.delete('/me/portfolio/:itemId', authMiddleware, async (req, res) => {
     if (!worker) return res.status(404).json({ message: 'פרופיל עובד לא נמצא' });
     res.json({ worker });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -230,7 +235,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({ worker, reviews, stats });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 

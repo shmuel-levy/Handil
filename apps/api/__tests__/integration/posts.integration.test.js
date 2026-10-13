@@ -51,7 +51,7 @@ describe('job board journey', () => {
     expect(mine.body.posts.find((p) => p._id === postId).status).toBe('closed');
   });
 
-  it('a worker accepting a post directly closes it and opens a booking', async () => {
+  it('a job is awarded only through a quote the resident accepts', async () => {
     const resident = await registerUser('דנה',  'dana2@p.test',  'resident');
     const worker   = await registerUser('משה', 'moshe2@p.test', 'worker');
     const rival    = await registerUser('אבי', 'avi@p.test',    'worker');
@@ -61,17 +61,22 @@ describe('job board journey', () => {
       .send({ title: 'החלפת מנעול', category: 'locksmith', budget: 300 });
     const postId = created.body.post._id;
 
-    const accept = await request(app).post(`/api/posts/${postId}/accept`)
-      .set('Authorization', `Bearer ${worker.token}`);
+    // A worker cannot simply take the job
+    const grab = await request(app).post(`/api/posts/${postId}/accept`)
+      .set('Authorization', `Bearer ${rival.token}`);
+    expect(grab.status).toBe(404);
+
+    const bid = await request(app).post('/api/quotes')
+      .set('Authorization', `Bearer ${worker.token}`)
+      .send({ jobPostId: postId, proposedPrice: 280 });
+    expect(bid.status).toBe(201);
+
+    const accept = await request(app).patch(`/api/quotes/${bid.body.quote._id}/accept`)
+      .set('Authorization', `Bearer ${resident.token}`);
     expect(accept.status).toBe(200);
     expect(accept.body.post.status).toBe('accepted');
 
-    // A second worker is too late
-    const late = await request(app).post(`/api/posts/${postId}/accept`)
-      .set('Authorization', `Bearer ${rival.token}`);
-    expect(late.status).toBe(400);
-
-    // Both sides now share one booking
+    // Both sides now share one booking, priced at the quote
     const residentBookings = await request(app).get('/api/bookings')
       .set('Authorization', `Bearer ${resident.token}`);
     const workerBookings = await request(app).get('/api/bookings')
@@ -80,7 +85,7 @@ describe('job board journey', () => {
     expect(residentBookings.body.bookings).toHaveLength(1);
     expect(workerBookings.body.bookings).toHaveLength(1);
     expect(residentBookings.body.bookings[0]._id).toBe(workerBookings.body.bookings[0]._id);
-    expect(residentBookings.body.bookings[0].price).toBe(300);
+    expect(residentBookings.body.bookings[0].price).toBe(280);
   });
 
   it('shows each worker a feed tailored to their trade', async () => {

@@ -1,23 +1,16 @@
 const express = require('express');
 const Review = require('../models/Review');
 const Booking = require('../models/Booking');
-const Worker = require('../models/Worker');
+const { recalcWorkerRating } = require('../utils/rating');
 const authMiddleware = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { schemas } = require('@handil/shared');
+const { serverError } = require('../utils/serverError');
+const { objectIdParam } = require('../middleware/objectIdParam');
 
 const router = express.Router();
 
-async function recalcWorkerRating(workerUserId) {
-  const reviews = await Review.find({ worker: workerUserId });
-  if (reviews.length === 0) return;
-  const avg = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-  await Worker.findOneAndUpdate(
-    { user: workerUserId },
-    { rating: Math.round(avg * 10) / 10, reviewCount: reviews.length },
-    { returnDocument: 'after' }
-  );
-}
+router.param('userId', objectIdParam('בעל מקצוע לא נמצא'));
 
 // POST /api/reviews
 router.post('/', authMiddleware, validate(schemas.createReviewSchema), async (req, res) => {
@@ -47,7 +40,7 @@ router.post('/', authMiddleware, validate(schemas.createReviewSchema), async (re
     res.status(201).json({ review: populated });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ message: 'כבר סקרת הזמנה זו' });
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -59,7 +52,7 @@ router.get('/worker/:userId', async (req, res) => {
       .sort({ createdAt: -1 });
     res.json({ reviews });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 

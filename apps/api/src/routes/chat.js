@@ -6,6 +6,10 @@ const auth          = require('../middleware/auth');
 const { validate }  = require('../middleware/validate');
 const { schemas }   = require('@handil/shared');
 const { unreadIncrement } = require('../utils/unread');
+const { serverError } = require('../utils/serverError');
+const { objectIdParam } = require('../middleware/objectIdParam');
+
+router.param('id', objectIdParam('שיחה לא נמצאה'));
 
 const USER_SELECT = 'name avatar role';
 const MAX_MESSAGES_PAGE = 100;
@@ -42,7 +46,7 @@ router.post('/conversations', auth, validate(schemas.createConversationSchema), 
 
     res.status(201).json({ conversation: conv });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -57,7 +61,7 @@ router.get('/conversations', auth, async (req, res) => {
 
     res.json({ conversations });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -95,7 +99,7 @@ router.get('/conversations/:id/messages', auth, async (req, res) => {
 
     res.json({ messages: messages.reverse(), page });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -135,7 +139,7 @@ router.post('/conversations/:id/messages', auth, validate(schemas.sendMessageSch
 
     res.status(201).json({ message: msg });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 
@@ -150,7 +154,7 @@ router.get('/unread', auth, async (req, res) => {
     }, 0);
     res.json({ unread: total });
   } catch (err) {
-    res.status(500).json({ message: 'שגיאת שרת' });
+    serverError(res, err);
   }
 });
 

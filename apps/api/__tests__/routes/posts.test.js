@@ -439,60 +439,71 @@ describe('GET /api/posts/:id', () => {
   });
 });
 
-// ─── POST /api/posts/:id/accept ───────────────────────────────────────────────
+// ─── Direct acceptance (removed) ──────────────────────────────────────────────
 
 describe('POST /api/posts/:id/accept', () => {
-  it('lets a worker accept an open post and creates a booking', async () => {
+  // A worker used to be able to claim any open job without the resident ever
+  // approving them — and that also revealed the resident's phone. Jobs are now
+  // awarded only through an accepted quote.
+  it('no longer exists, and the post stays open', async () => {
     const resident = await createResident();
     const { user: worker } = await createWorkerUser();
-    const post = await createPost(resident._id, { budget: 250 });
-
-    const res = await request(app)
-      .post(`/api/posts/${post._id}/accept`)
-      .set('Authorization', `Bearer ${tokenFor(worker)}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.post.status).toBe('accepted');
-    expect(res.body.post.acceptedBy._id).toBe(worker._id.toString());
-
-    const booking = await Booking.findOne({ resident: resident._id, worker: worker._id });
-    expect(booking).not.toBeNull();
-    expect(booking.status).toBe('accepted');
-    expect(booking.price).toBe(250);
-    expect(booking.category).toBe(post.category);
-  });
-
-  it('returns 403 when a resident tries to accept', async () => {
-    const resident = await createResident();
     const post = await createPost(resident._id);
 
     const res = await request(app)
       .post(`/api/posts/${post._id}/accept`)
-      .set('Authorization', `Bearer ${tokenFor(resident)}`);
+      .set('Authorization', `Bearer ${tokenFor(worker)}`);
 
-    expect(res.status).toBe(403);
-    expect(res.body.message).toBe('רק בעלי מקצוע יכולים לקבל עבודות');
+    expect(res.status).toBe(404);
+    expect((await JobPost.findById(post._id)).status).toBe('open');
+    expect(await Booking.countDocuments({ jobPost: post._id })).toBe(0);
+  });
+});
+
+// ─── Resident phone privacy ───────────────────────────────────────────────────
+
+describe('GET /api/posts/:id — resident phone', () => {
+  const view = (post, user) => request(app)
+    .get(`/api/posts/${post._id}`)
+    .set('Authorization', `Bearer ${tokenFor(user)}`);
+
+  it('hides the phone from a worker browsing an open post', async () => {
+    const resident = await createResident({ phone: '050-1112222' });
+    const { user: worker } = await createWorkerUser();
+    const post = await createPost(resident._id);
+
+    const res = await view(post, worker);
+    expect(res.status).toBe(200);
+    expect(res.body.post.resident.name).toBeDefined();
+    expect(res.body.post.resident.phone).toBeUndefined();
   });
 
-  it('returns 400 when the post is no longer open', async () => {
+  it('shows the phone to the resident who owns the post', async () => {
+    const resident = await createResident({ phone: '050-1112222' });
+    const post = await createPost(resident._id);
+
+    const res = await view(post, resident);
+    expect(res.body.post.resident.phone).toBe('050-1112222');
+  });
+
+  it('shows the phone to the worker whose quote was accepted, and no one else', async () => {
+    const resident = await createResident({ phone: '050-1112222' });
+    const { user: hired, workerProfile } = await createWorkerUser();
+    const { user: other } = await createWorkerUser();
+    const post = await createPost(resident._id);
+    const quote = await createQuote(post._id, workerProfile._id);
+
+    await request(app).patch(`/api/quotes/${quote._id}/accept`)
+      .set('Authorization', `Bearer ${tokenFor(resident)}`).expect(200);
+
+    expect((await view(post, hired)).body.post.resident.phone).toBe('050-1112222');
+    expect((await view(post, other)).body.post.resident.phone).toBeUndefined();
+  });
+
+  it('returns 404 rather than 500 for a malformed id', async () => {
     const resident = await createResident();
-    const { user: worker } = await createWorkerUser();
-    const post = await createPost(resident._id, { status: 'accepted' });
-
-    const res = await request(app)
-      .post(`/api/posts/${post._id}/accept`)
-      .set('Authorization', `Bearer ${tokenFor(worker)}`);
-
-    expect(res.status).toBe(400);
-    expect(res.body.message).toBe('הפוסט כבר לא פתוח לקבלה');
-  });
-
-  it('returns 404 for a non-existent post', async () => {
-    const { user: worker } = await createWorkerUser();
-    const res = await request(app)
-      .post('/api/posts/64a000000000000000000099/accept')
-      .set('Authorization', `Bearer ${tokenFor(worker)}`);
-
+    const res = await request(app).get('/api/posts/not-an-id')
+      .set('Authorization', `Bearer ${tokenFor(resident)}`);
     expect(res.status).toBe(404);
   });
 });

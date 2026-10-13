@@ -61,6 +61,9 @@ app.use('/api', globalLimiter);
 // Brute-force protection on the credential endpoints specifically.
 app.use('/api/auth/login',    authLimiter);
 app.use('/api/auth/register', authLimiter);
+// Account deletion re-checks the password, so it is a guessing surface too
+app.use('/api/auth/me', (req, res, next) =>
+  req.method === 'DELETE' ? authLimiter(req, res, next) : next());
 
 app.use('/api/auth',       authRoutes);
 app.use('/api/workers',    workerRoutes);

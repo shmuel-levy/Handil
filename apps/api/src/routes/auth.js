@@ -6,6 +6,9 @@ const Worker = require('../models/Worker');
 const authMiddleware = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { schemas } = require('@handil/shared');
+const { serverError } = require('../utils/serverError');
+const { deleteAccount } = require('../services/deleteAccount');
+const { getIO } = require('../socket');
 
 const router = express.Router();
 
@@ -40,7 +43,9 @@ router.post('/register', validate(schemas.registerSchema), async (req, res) => {
 
     res.status(201).json({ token: signToken(user._id), user: sanitizeUser(user) });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    // Two sign-ups racing past the lookup above hit the unique index instead
+    if (err.code === 11000) return res.status(409).json({ message: 'האימייל כבר רשום במערכת' });
+    serverError(res, err);
   }
 });
 
@@ -57,7 +62,7 @@ router.post('/login', validate(schemas.loginSchema), async (req, res) => {
 
     res.json({ token: signToken(user._id), user: sanitizeUser(user) });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -83,7 +88,26 @@ router.put('/me', authMiddleware, validate(schemas.updateProfileSchema), async (
     ).select('-password');
     res.json({ user: sanitizeUser(user) });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    serverError(res, err);
+  }
+});
+
+// DELETE /api/auth/me — permanently delete the account (password required)
+router.delete('/me', authMiddleware, validate(schemas.deleteAccountSchema), async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const match = await bcrypt.compare(req.body.password, user.password);
+    // 403, not 401: the session is valid, and clients treat 401 as "signed out"
+    if (!match) return res.status(403).json({ message: 'סיסמה שגויה' });
+
+    await deleteAccount(user._id);
+
+    // Drop any live socket still authenticated as this user
+    try { getIO()?.in(`user:${user._id}`).disconnectSockets(true); } catch {}
+
+    res.json({ message: 'החשבון נמחק' });
+  } catch (err) {
+    serverError(res, err);
   }
 });
 

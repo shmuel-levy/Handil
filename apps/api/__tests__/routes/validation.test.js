@@ -12,7 +12,7 @@ const {
   MAX_POST_IMAGES, MAX_IMAGE_BYTES, PASSWORD_MIN_LENGTH, MAX_PAGE_SIZE, DEFAULT_PAGE_SIZE,
 } = require('@handil/shared');
 const {
-  createResident, createWorkerUser, createPost, tokenFor,
+  createResident, createWorkerUser, createPost, createQuote, tokenFor,
 } = require('../helpers/factories');
 
 beforeAll(() => db.connect());
@@ -302,19 +302,35 @@ describe('worker name search', () => {
 // ─── booking ↔ job post link ──────────────────────────────────────────────────
 
 describe('bookings created from a job post are linked to it', () => {
-  it('records jobPost when a worker accepts a post directly', async () => {
+  it('records jobPost when the resident accepts a quote', async () => {
     const resident = await createResident();
-    const { user: worker } = await createWorkerUser();
+    const { workerProfile } = await createWorkerUser();
     const post = await createPost(resident._id);
+    const quote = await createQuote(post._id, workerProfile._id);
 
     await request(app)
-      .post(`/api/posts/${post._id}/accept`)
-      .set('Authorization', `Bearer ${tokenFor(worker)}`);
+      .patch(`/api/quotes/${quote._id}/accept`)
+      .set('Authorization', `Bearer ${tokenFor(resident)}`)
+      .expect(200);
 
     const Booking = require('../../src/models/Booking');
     const booking = await Booking.findOne({ jobPost: post._id });
     expect(booking).not.toBeNull();
     expect(booking.jobPost.toString()).toBe(post._id.toString());
+  });
+
+  it('allows any number of profile bookings (jobPost null) for the same pair', async () => {
+    const resident = await createResident();
+    const { user: worker } = await createWorkerUser();
+    const Booking = require('../../src/models/Booking');
+    await Booking.syncIndexes();
+    const book = () => request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${tokenFor(resident)}`)
+      .send({ workerUserId: worker._id, category: 'plumber' });
+
+    expect((await book()).status).toBe(201);
+    expect((await book()).status).toBe(201);
   });
 
   it('leaves jobPost null for a booking made straight from a profile', async () => {
