@@ -1,4 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
@@ -19,9 +21,10 @@ import { CATEGORIES } from '../../constants/categories';
 import BlueprintGrid from '../../components/site/BlueprintGrid';
 import HazardStripe from '../../components/site/HazardStripe';
 import { colors } from '../../constants/colors';
-import { updateMyProfile } from '../../services/authApi';
+import { deleteAccount, updateMyProfile } from '../../services/authApi';
 import { getMyWorkerProfile, getWorker, updateWorkerProfile } from '../../services/workersApi';
 import { useAuthStore } from '../../store/authStore';
+import type { MainTabParamList } from '../../navigation/types';
 import { WorkerProfile, WorkerStats } from '../../types';
 
 export default function ProfileScreen() {
@@ -42,6 +45,11 @@ export default function ProfileScreen() {
   const [isAvailable, setIsAvailable] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmLogoutVisible, setConfirmLogoutVisible] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
 
   useEffect(() => {
     if (user?.role !== 'worker') return;
@@ -125,6 +133,33 @@ export default function ProfileScreen() {
 
   function confirmLogout() {
     setConfirmLogoutVisible(true);
+  }
+
+  function openInfo(topic: 'privacy' | 'terms') {
+    navigation.navigate('HomeTab', { screen: 'Info', params: { topic } });
+  }
+
+  function closeDelete() {
+    setDeleteOpen(false);
+    setDeletePassword('');
+    setDeleteError('');
+  }
+
+  async function handleDeleteAccount() {
+    if (!deletePassword) {
+      setDeleteError('נא להזין סיסמה לאישור');
+      return;
+    }
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteAccount(deletePassword);
+      // Signing out clears the stored token and drops the socket (AppRoot)
+      await logout();
+    } catch (e: any) {
+      setDeleteError(e?.response?.data?.message ?? 'לא ניתן למחוק את החשבון כרגע');
+      setDeleting(false);
+    }
   }
 
   const initial = user?.name?.charAt(0)?.toUpperCase() ?? '?';
@@ -394,14 +429,14 @@ export default function ProfileScreen() {
             icon="shield-checkmark-outline"
             title="מדיניות פרטיות"
             subtitle="איך אנחנו מגנים על המידע שלך"
-            onPress={() => Alert.alert('בקרוב', 'מדיניות הפרטיות תהיה זמינה בקרוב.')}
+            onPress={() => openInfo('privacy')}
           />
 
           <SettingRow
             icon="document-text-outline"
             title="תנאי שימוש"
             subtitle="הסכם שימוש ותנאי השירות"
-            onPress={() => Alert.alert('בקרוב', 'תנאי השימוש יהיו זמינים בקרוב.')}
+            onPress={() => openInfo('terms')}
             last
           />
         </View>
@@ -423,6 +458,47 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={18} color={colors.error} />
             <Text style={styles.logoutText}>התנתקות</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* ── Delete account ── */}
+        {deleteOpen ? (
+          <View style={styles.deletePanel}>
+            <Text style={styles.deleteTitle}>מחיקת החשבון לצמיתות</Text>
+            <Text style={styles.deleteBody}>
+              {isWorker
+                ? 'הפרופיל, ההצעות, ההזמנות, הביקורות וההודעות שלך יימחקו. עבודות שהתקבלת אליהן יחזרו להיות פתוחות. לא ניתן לבטל פעולה זו.'
+                : 'העבודות שפרסמת, ההצעות שקיבלת, ההזמנות, הביקורות וההודעות שלך יימחקו. לא ניתן לבטל פעולה זו.'}
+            </Text>
+            <Input
+              label="הזן סיסמה לאישור"
+              value={deletePassword}
+              onChangeText={(t) => { setDeletePassword(t); setDeleteError(''); }}
+              secureTextEntry
+              autoCapitalize="none"
+              editable={!deleting}
+            />
+            {deleteError ? <Text style={styles.deleteError}>{deleteError}</Text> : null}
+            <View style={styles.logoutConfirmBtns}>
+              <TouchableOpacity
+                style={[styles.logoutConfirmYes, deleting && { opacity: 0.7 }]}
+                onPress={handleDeleteAccount}
+                disabled={deleting}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+              >
+                {deleting
+                  ? <ActivityIndicator size="small" color={colors.white} />
+                  : <Text style={styles.logoutConfirmYesText}>מחק את החשבון</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.logoutConfirmNo} onPress={closeDelete} disabled={deleting} activeOpacity={0.85}>
+                <Text style={styles.logoutConfirmNoText}>ביטול</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.deleteLink} onPress={() => setDeleteOpen(true)} activeOpacity={0.7}>
+            <Text style={styles.deleteLinkText}>מחיקת חשבון</Text>
           </TouchableOpacity>
         )}
 
@@ -636,4 +712,16 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: colors.border,
   },
   logoutConfirmNoText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+
+  // ── Delete account
+  deleteLink: { alignSelf: 'center', marginTop: 18, paddingVertical: 8, paddingHorizontal: 16 },
+  deleteLinkText: { fontSize: 13, fontWeight: '600', color: colors.textMuted, textDecorationLine: 'underline' },
+  deletePanel: {
+    marginHorizontal: 20, marginTop: 16, padding: 18, borderRadius: 8,
+    backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.error,
+    gap: 10,
+  },
+  deleteTitle: { fontSize: 16, fontWeight: '800', color: colors.error, textAlign: 'right' },
+  deleteBody: { fontSize: 13, color: colors.textSecondary, textAlign: 'right', lineHeight: 20 },
+  deleteError: { fontSize: 13, color: colors.error, textAlign: 'right', fontWeight: '600' },
 });
