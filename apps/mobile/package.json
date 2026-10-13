@@ -8,7 +8,11 @@
     "mobile": "expo start --host lan",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web --port 8082"
+    "web": "expo start --web --port 8082",
+    "check:api-url": "node scripts/check-api-url.js",
+    "build:web": "node scripts/check-api-url.js && expo export --platform web --output-dir dist --clear && node scripts/verify-web-bundle.js",
+    "eas-build-pre-install": "node scripts/check-api-url.js",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -17,8 +21,8 @@
     "@react-navigation/native": "^7.2.5",
     "@react-navigation/native-stack": "^7.16.0",
     "axios": "^1.18.0",
-    "expo": "~54.0.33",
-    "expo-constants": "~18.0.13",
+    "expo": "~54.0.37",
+    "expo-constants": "~18.0.14",
     "expo-image-picker": "~17.0.11",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
@@ -33,7 +37,7 @@
     "@handil/shared": "*"
   },
   "devDependencies": {
-    "@types/react": "~18.3.0",
+    "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
   },
   "private": true

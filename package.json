@@ -8,19 +8,24 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=api",
+    "start": "npm run start --workspace=api",
     "api": "npm run dev --workspace=api",
     "mobile": "npm run start --workspace=mobile",
     "web": "npm run web --workspace=mobile",
     "dev:all": "concurrently -n api,web -c blue,green \"npm run api\" \"npm run web\"",
     "demo": "npm run demo --workspace=api",
-    "demo:all": "concurrently -n api,web -c blue,green \"npm run demo --workspace=api\" \"npm run web --workspace=mobile\""
+    "demo:all": "concurrently -n api,web -c blue,green \"npm run demo --workspace=api\" \"npm run web --workspace=mobile\"",
+    "build": "npm run build:web --workspace=mobile",
+    "test": "npm test --workspace=api",
+    "typecheck": "npm run typecheck --workspace=mobile"
   },
   "devDependencies": {
-    "@types/react": "~18.3.0",
+    "@types/react": "~19.1.10",
     "concurrently": "^10.0.3"
   },
   "overrides": {
-    "@types/react": "~18.3.0"
+    "@types/react": "~19.1.10",
+    "expo": "~54.0.37"
   },
   "allowScripts": {
     "mongodb-memory-server@11.2.0": true

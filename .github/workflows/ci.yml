@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, 'feature/**']
   pull_request:
     branches: [main, dev]
 
@@ -30,8 +30,8 @@ jobs:
           JWT_ACCESS_SECRET: ci-test-secret-not-for-production
           NODE_ENV: test
 
-  lint-mobile:
-    name: Mobile TypeScript Check
+  mobile:
+    name: Mobile — typecheck, doctor, production build
     runs-on: ubuntu-latest
 
     steps:
@@ -48,5 +48,64 @@ jobs:
         run: npm ci
 
       - name: TypeScript type check
-        run: npx tsc --noEmit
+        run: npm run typecheck
+
+      - name: Expo doctor
+        run: npx expo-doctor
         working-directory: apps/mobile
+
+      # Same command as a real release; the URL guard and the bundle check run
+      # inside it, so a build that would point at localhost fails here.
+      - name: Production web build
+        run: npm run build
+        env:
+          EXPO_PUBLIC_API_BASE_URL: https://ci.handil.invalid/api
+
+  docker-api:
+    name: API Docker image — build and boot
+    runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Built from the repo root: the image needs packages/shared and the root lockfile
+      - name: Build image
+        run: docker build -f apps/api/Dockerfile -t handil-api .
+
+      - name: Start container
+        run: |
+          docker run -d --name api --network host \
+            -e PORT=4000 \
+            -e MONGO_URI=mongodb://127.0.0.1:27017/handil_ci \
+            -e JWT_ACCESS_SECRET=ci-docker-secret-not-for-production \
+            -e ALLOWED_ORIGINS=https://ci.handil.invalid \
+            handil-api
+
+      - name: Wait for health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4000/api/health; then echo; exit 0; fi
+            sleep 2
+          done
+          echo "API never became healthy"; docker logs api; exit 1
+
+      - name: Register and log in against the container
+        run: |
+          curl -sf -X POST http://127.0.0.1:4000/api/auth/register \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"CI","email":"ci@handil.invalid","password":"secret123","role":"resident"}'
+          echo
+          curl -sf -X POST http://127.0.0.1:4000/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"ci@handil.invalid","password":"secret123"}' | grep -q token
+
+      - name: Container logs
+        if: always()
+        run: docker logs api || true
